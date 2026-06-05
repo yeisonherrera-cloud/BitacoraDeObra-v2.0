@@ -24,15 +24,20 @@
     .input-group { margin-bottom: 18px; text-align: left; }
     label { display: block; font-size: 11px; font-weight: 700; color: #a0aec0; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px;}
     
-    input[type="text"], input[type="password"], input[type="email"], input:not([type]), select { 
+    input[type="text"], input[type="password"], input[type="email"], input:not([type]), select, textarea { 
       width: 100%; padding: 14px; background: rgba(0, 0, 0, 0.6); 
       border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; 
       box-sizing: border-box; font-size: 14px; 
       color: #ffffff !important; 
       font-family: 'Inter', sans-serif; transition: all 0.3s; 
-      text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      text-transform: uppercase;
     }
-    input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 15px rgba(0, 242, 96, 0.2); background: rgba(0, 0, 0, 0.8); }
+    input[type="text"], input[type="password"], input[type="email"], input:not([type]), select {
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    textarea { text-transform: none; resize: vertical; }
+    
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 15px rgba(0, 242, 96, 0.2); background: rgba(0, 0, 0, 0.8); }
     select option { background: #0f172a; color: white; }
     input[type="password"] { text-transform: none; }
     input:read-only { background: rgba(255, 255, 255, 0.03); color: #94a3b8 !important; border-color: rgba(255, 255, 255, 0.05); cursor: not-allowed; }
@@ -54,6 +59,7 @@
     .btn-error { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 4px 15px rgba(255, 75, 43, 0.3); }
     .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); }
     .btn-info { background: linear-gradient(135deg, #0575e6, #021b79); box-shadow: 0 4px 15px rgba(5, 117, 230, 0.3); }
+    .btn-whatsapp { background: linear-gradient(135deg, #25D366, #128C7E); box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3); }
     
     .btn-audio-grabando { background: linear-gradient(135deg, #ff416c, #ff4b2b); animation: pulseRecord 1.5s infinite; }
     @keyframes pulseRecord { 0% { box-shadow: 0 0 0 0 rgba(255, 65, 108, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(255, 65, 108, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 65, 108, 0); } }
@@ -62,7 +68,7 @@
     .logo-wrapper img { width: 150px; border-radius: 12px; display: block; animation: float 4s ease-in-out infinite, pulseGlow 3s alternate infinite; }
     .matrix-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px; overflow: hidden; opacity: 0; z-index: 15; background: rgba(0, 15, 5, 0.9); box-shadow: inset 0 0 20px rgba(0, 242, 96, 0.5); pointer-events: none; }
     .is-processing .matrix-overlay { animation: matrixPulse 4.5s infinite; }
-    .matrix-overlay::before, .matrix-overlay::after { content: "10100110 01100101 10101011 00101001 10010100 01110011 11010101 01010100 11001100 10101011 01100101 10101011 00101001 10010100 01110011 11010101 01010100 11001100 10101011 01100101 10101011 00101001 10010100 01110011 11010101 01010100 11001100 10101011 01100101 10101011 00101001 10010100 01110011 11010101 01010100 11001100 10101011 01100101 10101011 00101001 10010100 01110011 11010101 01010100 11001100 10101011 01100101"; position: absolute; top: -100%; left: 0; width: 100%; color: #00ff41; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 12px; word-break: break-all; animation: matrixRain 3s linear infinite; }
+    .matrix-overlay::before, .matrix-overlay::after { content: "10100110 01100101 10101011 00101001 10010100 01110011 11010101 01010100 11001100 10101011 01100101 10101011 00101001 10010100 01110011 11010101 01010100 11001100 10101011 01100101 10101011 00101001 10010100 01110011 11010101 01010100 11001100 10101011 01100101 10101011 00101001 10010100 01110011 11010101 01010100 11001100 10101011 01100101"; position: absolute; top: -100%; left: 0; width: 100%; color: #00ff41; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 12px; word-break: break-all; animation: matrixRain 3s linear infinite; }
     @keyframes matrixPulse { 0%, 15% { opacity: 0; } 40%, 60% { opacity: 1; } 85%, 100% { opacity: 0; } }
     @keyframes matrixRain { 0% { top: -50%; } 100% { top: 0%; } }
     .is-processing img { animation: float 4s ease-in-out infinite, glitchMatrixExtremo 4.5s infinite; }
@@ -209,6 +215,11 @@
         </div>
     </div>
 
+    <div class="input-group">
+      <label>DESCRIPCIÓN / OBSERVACIONES</label>
+      <textarea id="appDescripcion" rows="3" placeholder="Detalles de la labor, novedades, observaciones..."></textarea>
+    </div>
+
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
         <input type="file" id="inputFoto" accept="image/*" capture="environment">
         <button class="btn-action btn-foto" onclick="document.getElementById('inputFoto').click()">📸 TOMAR FOTO</button>
@@ -233,7 +244,6 @@
   <div class="footer">Desarrollado por ⚡ Obras Manizales ⚡</div>
 
   <script>
-    // ¡ACTUALIZADO! - Nuevo link de despliegue
     const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbxJW36iyRL1szzULJrj7iS4RSLaEr65gWnKSetnzwRkAH8vB-m-BC4cTzmtfQ763L8/exec';
     
     let dbUsuarios = [];
@@ -417,6 +427,7 @@
         archivosQueue = [];
         actualizarUICola();
         document.getElementById('appUbicacion').value = '';
+        document.getElementById('appDescripcion').value = '';
         document.getElementById('loginPassword').value = '';
         document.getElementById('badgeModulo').style.display = 'none';
         cambiarVista('vistaLogin');
@@ -482,6 +493,11 @@
       }
     }
 
+    function removerDeCola(index) {
+        archivosQueue.splice(index, 1);
+        actualizarUICola();
+    }
+
     function actualizarUICola() {
         const queueList = document.getElementById('queueList');
         const countSpan = document.getElementById('queueCount');
@@ -520,6 +536,7 @@
         const proyectoElegido = document.getElementById('appProyecto').value;
         const frente = document.getElementById('appFrente').value.trim().toUpperCase();
         const ubicacion = document.getElementById('appUbicacion').value.trim().toUpperCase();
+        const descripcion = document.getElementById('appDescripcion').value.trim();
         
         if(!proyectoElegido) return alert("⚠️ Seleccione un PROYECTO.");
         if(!frente) return alert("⚠️ Debe seleccionar un FRENTE.");
@@ -533,7 +550,9 @@
 
         mostrarLoader("Subiendo Archivos...");
         let errores = 0;
+        let ultimoErrorTxt = ""; 
         let contadoresTipo = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
+        let linksDeArchivos = []; 
 
         for(let i=0; i<archivosQueue.length; i++) {
             let item = archivosQueue[i];
@@ -546,14 +565,24 @@
             try {
                 const r = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ action: 'upload', base64: item.base64, nombre: nombreFinal }) });
                 const res = await r.json();
-                if(res.estado !== 'exito') errores++;
-            } catch (e) { errores++; }
+                
+                if(res.estado !== 'exito') {
+                    errores++;
+                    ultimoErrorTxt = res.mensaje || "Error desconocido devuelto por el servidor.";
+                } else {
+                    linksDeArchivos.push({ tipo: item.tipo, url: res.url });
+                }
+            } catch (e) { 
+                errores++; 
+                ultimoErrorTxt = e.message || e.toString();
+            }
         }
 
         if(errores === 0) {
+            let resumenText = `Se cargaron: ${contadoresTipo['Foto']} Fotos, ${contadoresTipo['Video']} Videos, ${contadoresTipo['Audio']} Audios.`;
+            
             // ENVÍO DE TRAZABILIDAD AGRUPADA
             try {
-                let resumenText = `Se cargaron: ${contadoresTipo['Foto']} Fotos, ${contadoresTipo['Video']} Videos, ${contadoresTipo['Audio']} Audios.`;
                 const payloadTrazabilidad = {
                     action: 'trazabilidad',
                     usuario: usuarioActual.nombre,
@@ -562,17 +591,38 @@
                     frente: frente,
                     ubicacion: ubicacion,
                     modulo: modulo,
-                    resumen: resumenText
+                    resumen: resumenText,
+                    descripcion: descripcion
                 };
                 await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify(payloadTrazabilidad) });
             } catch (e) { console.log("Fallo trazabilidad, pero archivos subidos"); }
 
+            // NUEVO TEXTO DE WHATSAPP TOTALMENTE LIMPIO (SIN EMOJIS) PARA EVITAR LOS SÍMBOLOS RAROS ""
+            let wsText = `*--- REPORTE DE OBRA - ${modulo} ---*\n`;
+            wsText += `*Registra:* ${usuarioActual.nombre}\n`;
+            wsText += `*Proyecto:* ${proyectoElegido}\n`;
+            wsText += `*Ubicacion:* ${frente} - ${ubicacion}\n\n`;
+            
+            if (descripcion !== "") {
+                wsText += `*Descripcion:*\n_${descripcion}_\n\n`;
+            }
+            
+            wsText += `*ARCHIVOS ADJUNTOS (${linksDeArchivos.length}):*\n`;
+            linksDeArchivos.forEach((file, index) => {
+                wsText += `- Archivo ${file.tipo} ${index + 1}: ${file.url}\n`;
+            });
+
+            let linkWa = `https://wa.me/?text=${encodeURIComponent(wsText)}`;
+            let btnWhatsAppHTML = `<br><br><a href="${linkWa}" target="_blank" style="text-decoration:none;"><button class="btn-action btn-whatsapp" style="margin-top:0;">💬 COMPARTIR EN WHATSAPP</button></a>`;
+
             archivosQueue = [];
             actualizarUICola();
             document.getElementById('appUbicacion').value = '';
-            exitoLoader(`Reporte completado.<br><span style="font-size:12px;color:gray;">Archivos enviados correctamente.</span>`, 'vistaApp');
+            document.getElementById('appDescripcion').value = '';
+            
+            exitoLoader(`Reporte completado.<br><span style="font-size:12px;color:gray;">Archivos subidos exitosamente.</span>${btnWhatsAppHTML}`, 'vistaApp');
         } else {
-            errorLoader(`Hubo errores al subir ${errores} archivos. Revise su conexión.`);
+            errorLoader(`Fallo en ${errores} archivo(s).<br><span style="font-size:11px;color:#ffb3b3;margin-top:10px;display:block;">Detalle: ${ultimoErrorTxt}</span>`);
         }
     }
 
