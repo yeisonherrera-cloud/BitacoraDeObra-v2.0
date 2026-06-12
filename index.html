@@ -24,7 +24,7 @@
     .input-group { margin-bottom: 18px; text-align: left; }
     label { display: block; font-size: 11px; font-weight: 700; color: #a0aec0; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px;}
     
-    input[type="text"], input[type="password"], input[type="email"], input:not([type]), select, textarea { 
+    input[type="text"], input[type="number"], input[type="password"], input[type="email"], input:not([type]), select, textarea { 
       width: 100%; padding: 14px; background: rgba(0, 0, 0, 0.6); 
       border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; 
       box-sizing: border-box; font-size: 14px; 
@@ -107,6 +107,108 @@
         border: 1px solid rgba(255,255,255,0.2); 
         z-index: 100; 
         display: none;
+    }
+
+    /* ESTILOS PARA LA NUEVA SECCIÓN DE OPCIONES GENERALES */
+    .opciones-general-container {
+        display: none; /* Oculto por defecto, se muestra por JS */
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(0, 242, 96, 0.2);
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 20px;
+        text-align: left;
+    }
+
+    .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        cursor: pointer;
+    }
+
+    .checkbox-wrapper:last-child {
+        margin-bottom: 0;
+    }
+
+    .checkbox-wrapper input[type="checkbox"] {
+        display: none;
+    }
+
+    .checkbox-custom {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #00f260;
+        border-radius: 6px;
+        margin-right: 12px;
+        position: relative;
+        transition: all 0.2s ease;
+        background: rgba(0,0,0,0.5);
+    }
+
+    .checkbox-wrapper input[type="checkbox"]:checked + .checkbox-custom {
+        background: #00f260;
+    }
+
+    .checkbox-wrapper input[type="checkbox"]:checked + .checkbox-custom::after {
+        content: "✓";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #04090b;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .checkbox-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #e2e8f0;
+        letter-spacing: 0.5px;
+    }
+
+    /* Formularios desplegables para RCD y Medidores */
+    .sub-formulario {
+        display: none; /* Oculto por defecto */
+        background: rgba(0,0,0,0.4);
+        padding: 15px;
+        border-radius: 10px;
+        margin-top: 15px;
+        border-left: 3px solid #00f260;
+        animation: fadeSlideUp 0.3s ease forwards;
+    }
+
+    .sub-formulario.medidores {
+        border-left-color: #0575e6;
+    }
+
+    .sub-formulario h3 {
+        margin-top: 0;
+        font-size: 14px;
+        color: #00f260;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 5px;
+    }
+
+    .sub-formulario.medidores h3 {
+        color: #0575e6;
+    }
+
+    .unidad-hint {
+        position: absolute;
+        right: 15px;
+        top: 42px; /* Alineado verticalmente con el input */
+        font-size: 12px;
+        color: #94a3b8;
+        font-weight: bold;
+        pointer-events: none; /* Para que no interfiera con el click en el input */
+    }
+    
+    .input-wrapper-hint {
+        position: relative;
     }
   </style>
 </head>
@@ -207,7 +309,7 @@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
         <div class="input-group">
           <label>FRENTE</label>
-          <select id="appFrente"><option value="">Seleccione...</option></select>
+          <select id="appFrente" onchange="evaluarFrenteGeneral()"><option value="">Seleccione...</option></select>
         </div>
         <div class="input-group">
           <label>UBICACIÓN</label>
@@ -215,7 +317,75 @@
         </div>
     </div>
 
-    <div class="input-group">
+    <!-- NUEVA SECCIÓN: OPCIONES GENERALES (Solo se muestra si Frente contiene "GENERAL") -->
+    <div id="opcionesGeneral" class="opciones-general-container">
+        <label style="color: #00f260; margin-bottom: 12px;">OPCIONES DE REPORTE ESPECIAL</label>
+        
+        <label class="checkbox-wrapper">
+            <input type="checkbox" id="chkRCD" onchange="toggleFormulario('formRCD', this.checked)">
+            <div class="checkbox-custom"></div>
+            <span class="checkbox-label">APROVECHAMIENTO RCD</span>
+        </label>
+
+        <label class="checkbox-wrapper">
+            <input type="checkbox" id="chkMedidores" onchange="toggleFormulario('formMedidores', this.checked)">
+            <div class="checkbox-custom"></div>
+            <span class="checkbox-label">LECTURA DE MEDIDORES</span>
+        </label>
+    </div>
+
+    <!-- FORMULARIO RCD -->
+    <div id="formRCD" class="sub-formulario">
+        <h3>🌱 Aprovechamiento RCD</h3>
+        <div class="input-group">
+            <label>TIPO DE RESIDUO</label>
+            <select id="rcdTipo" onchange="actualizarUnidadRCD()">
+                <option value="">Seleccione...</option>
+                <option value="TIERRA">TIERRA</option>
+                <option value="ESCOMBROS">ESCOMBROS</option>
+                <option value="ACERO - HIERRO">ACERO - HIERRO</option>
+                <option value="MADERA">MADERA</option>
+                <option value="PVC">PVC</option>
+            </select>
+        </div>
+        <div class="input-group input-wrapper-hint">
+            <label>CANTIDAD DEL MATERIAL</label>
+            <input type="number" id="rcdCantidad" placeholder="0" step="any">
+            <span id="rcdUnidad" class="unidad-hint"></span>
+        </div>
+        <div class="input-group">
+            <label>PROCEDENCIA DEL MATERIAL (FRENTE)</label>
+            <input type="text" id="rcdProcedencia" placeholder="Frente de trabajo origen">
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+            <label>TIPO DE APROVECHAMIENTO</label>
+            <input type="text" id="rcdAprovechamiento" placeholder="Detalle del uso">
+        </div>
+    </div>
+
+    <!-- FORMULARIO MEDIDORES -->
+    <div id="formMedidores" class="sub-formulario medidores">
+        <h3>⚡ Lectura de Medidores</h3>
+        <div class="input-group input-wrapper-hint">
+            <label>MEDIDOR DE AGUA (Consumo)</label>
+            <input type="number" id="medAgua" placeholder="0" step="any">
+            <span class="unidad-hint">M3</span>
+        </div>
+        
+        <label style="color:#0575e6; margin-top: 20px; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 15px;">MEDIDOR DE ENERGÍA</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="input-group" style="margin-bottom: 0;">
+                <label style="font-size: 10px;">ENERGÍA ACTIVA</label>
+                <input type="number" id="medActiva" placeholder="0" step="any">
+            </div>
+            <div class="input-group" style="margin-bottom: 0;">
+                <label style="font-size: 10px;">ENERGÍA REACTIVA</label>
+                <input type="number" id="medReactiva" placeholder="0" step="any">
+            </div>
+        </div>
+    </div>
+
+    <div class="input-group" style="margin-top: 18px;">
       <label>DESCRIPCIÓN / OBSERVACIONES</label>
       <textarea id="appDescripcion" rows="3" placeholder="Detalles de la labor, novedades, observaciones..."></textarea>
     </div>
@@ -244,7 +414,8 @@
   <div class="footer">Desarrollado por ⚡ Obras Manizales ⚡</div>
 
   <script>
-    const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbxJW36iyRL1szzULJrj7iS4RSLaEr65gWnKSetnzwRkAH8vB-m-BC4cTzmtfQ763L8/exec';
+    // REEMPLAZAR CON TU NUEVA URL GENERADA AL IMPLEMENTAR EL BACKEND (PASO 2)
+    const URL_APPS_SCRIPT = 'AQUI_TU_NUEVA_URL_DE_APPS_SCRIPT'; 
     
     let dbUsuarios = [];
     let dbProyectos = {};
@@ -356,7 +527,60 @@
                 frentesDropdown.appendChild(opt);
             });
         }
+        // Limpiar formularios extra al cambiar de proyecto/frente
+        evaluarFrenteGeneral();
     }
+
+    /* === NUEVAS FUNCIONES PARA LOS FORMULARIOS GENERALES (RCD/MEDIDORES) === */
+    function evaluarFrenteGeneral() {
+        const frenteSeleccionado = document.getElementById('appFrente').value.toUpperCase();
+        const contenedorOpciones = document.getElementById('opcionesGeneral');
+        
+        if (frenteSeleccionado.includes("GENERAL")) {
+            contenedorOpciones.style.display = "block";
+        } else {
+            contenedorOpciones.style.display = "none";
+            // Limpiar y ocultar todo si no es general
+            document.getElementById('chkRCD').checked = false;
+            document.getElementById('chkMedidores').checked = false;
+            toggleFormulario('formRCD', false);
+            toggleFormulario('formMedidores', false);
+        }
+    }
+
+    function toggleFormulario(idFormulario, mostrar) {
+        const form = document.getElementById(idFormulario);
+        form.style.display = mostrar ? "block" : "none";
+        
+        if (!mostrar) {
+            // Limpiar datos si se oculta
+            if (idFormulario === 'formRCD') {
+                document.getElementById('rcdTipo').value = "";
+                document.getElementById('rcdCantidad').value = "";
+                document.getElementById('rcdProcedencia').value = "";
+                document.getElementById('rcdAprovechamiento').value = "";
+                document.getElementById('rcdUnidad').innerText = "";
+            } else if (idFormulario === 'formMedidores') {
+                document.getElementById('medAgua').value = "";
+                document.getElementById('medActiva').value = "";
+                document.getElementById('medReactiva').value = "";
+            }
+        }
+    }
+
+    function actualizarUnidadRCD() {
+        const tipo = document.getElementById('rcdTipo').value;
+        const hintUnidad = document.getElementById('rcdUnidad');
+        
+        if (tipo === "TIERRA" || tipo === "ESCOMBROS") {
+            hintUnidad.innerText = "M3";
+        } else if (tipo === "ACERO - HIERRO" || tipo === "MADERA" || tipo === "PVC") {
+            hintUnidad.innerText = "KG";
+        } else {
+            hintUnidad.innerText = "";
+        }
+    }
+    /* ========================================================================= */
 
     function validarCorreoRegex(correo) {
         const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
@@ -430,6 +654,11 @@
         document.getElementById('appDescripcion').value = '';
         document.getElementById('loginPassword').value = '';
         document.getElementById('badgeModulo').style.display = 'none';
+        
+        // Resetear también los nuevos formularios
+        document.getElementById('appFrente').value = '';
+        evaluarFrenteGeneral();
+
         cambiarVista('vistaLogin');
     }
 
@@ -505,7 +734,14 @@
         
         if(archivosQueue.length === 0) {
             queueList.innerHTML = "No hay archivos pendientes.";
-            document.getElementById('btnEnviarReporte').style.display = 'none';
+            
+            // Ocultamos el botón SOLAMENTE SI NO ESTÁN LOS CHECKS ACTIVADOS
+            // Ahora permitiremos enviar reporte sin fotos si se llena RCD o Medidores
+            const tieneChecksActivos = document.getElementById('chkRCD').checked || document.getElementById('chkMedidores').checked;
+            
+            if(!tieneChecksActivos) {
+                document.getElementById('btnEnviarReporte').style.display = 'none';
+            }
             return;
         }
 
@@ -520,6 +756,11 @@
             queueList.appendChild(div);
         });
     }
+
+    // Listener para mostrar el botón de enviar si se activa un checkbox sin archivos adjuntos
+    document.getElementById('chkRCD').addEventListener('change', () => { if(archivosQueue.length === 0) actualizarUICola(); else document.getElementById('btnEnviarReporte').style.display = 'block'; });
+    document.getElementById('chkMedidores').addEventListener('change', () => { if(archivosQueue.length === 0) actualizarUICola(); else document.getElementById('btnEnviarReporte').style.display = 'block'; });
+
 
     function obtenerFechaFormateada() {
         const d = new Date();
@@ -538,50 +779,104 @@
         const ubicacion = document.getElementById('appUbicacion').value.trim().toUpperCase();
         const descripcion = document.getElementById('appDescripcion').value.trim();
         
+        // Verificación de los checkboxes
+        const rcdActivo = document.getElementById('chkRCD').checked;
+        const medidoresActivo = document.getElementById('chkMedidores').checked;
+
         if(!proyectoElegido) return alert("⚠️ Seleccione un PROYECTO.");
         if(!frente) return alert("⚠️ Debe seleccionar un FRENTE.");
         if(!ubicacion) return alert("⚠️ Debe ingresar una UBICACIÓN.");
-        if(archivosQueue.length === 0) return alert("Agregue al menos un archivo.");
+        
+        // Exigir al menos un archivo O que haya marcado un checkbox
+        if(archivosQueue.length === 0 && !rcdActivo && !medidoresActivo) {
+            return alert("Agregue al menos un archivo o reporte un formulario especial.");
+        }
+
+        // === RECOLECCIÓN DE DATOS DE LOS NUEVOS FORMULARIOS ===
+        let payloadRCD = null;
+        if (rcdActivo) {
+            const rcdTipo = document.getElementById('rcdTipo').value;
+            const rcdCantidad = document.getElementById('rcdCantidad').value;
+            const rcdProcedencia = document.getElementById('rcdProcedencia').value.trim().toUpperCase();
+            const rcdAprovechamiento = document.getElementById('rcdAprovechamiento').value.trim().toUpperCase();
+
+            if(!rcdTipo || !rcdCantidad || !rcdProcedencia || !rcdAprovechamiento) {
+                return alert("⚠️ Por favor, complete todos los campos del formulario de Aprovechamiento RCD.");
+            }
+
+            payloadRCD = {
+                tipoResiduo: rcdTipo,
+                cantidad: rcdCantidad,
+                procedencia: rcdProcedencia,
+                aprovechamiento: rcdAprovechamiento
+            };
+        }
+
+        let payloadMedidores = null;
+        if (medidoresActivo) {
+            const medAgua = document.getElementById('medAgua').value;
+            const medActiva = document.getElementById('medActiva').value;
+            const medReactiva = document.getElementById('medReactiva').value;
+
+            // Se exige al menos llenar un campo si el check está activo
+            if(!medAgua && !medActiva && !medReactiva) {
+                 return alert("⚠️ Por favor, ingrese al menos una lectura en el formulario de Medidores.");
+            }
+
+            payloadMedidores = {
+                agua: medAgua,
+                activa: medActiva,
+                reactiva: medReactiva
+            };
+        }
+        // =========================================================
 
         const infoProy = dbProyectos[proyectoElegido];
         const sigla = infoProy ? infoProy.sigla : "S-S";
         const fecha = obtenerFechaFormateada();
         const modulo = usuarioActual.modulo || "OBRA";
 
-        mostrarLoader("Subiendo Archivos...");
+        mostrarLoader("Procesando Reporte...");
         let errores = 0;
         let ultimoErrorTxt = ""; 
         let contadoresTipo = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
         let linksDeArchivos = []; 
 
-        for(let i=0; i<archivosQueue.length; i++) {
-            let item = archivosQueue[i];
-            let msg = `Subiendo archivo ${i+1} de ${archivosQueue.length}...`;
-            actualizarUI({ progreso: Math.floor(((i)/archivosQueue.length)*100), mensaje: msg });
+        // 1. SUBIDA DE ARCHIVOS (Solo si hay)
+        if (archivosQueue.length > 0) {
+            for(let i=0; i<archivosQueue.length; i++) {
+                let item = archivosQueue[i];
+                let msg = `Subiendo archivo ${i+1} de ${archivosQueue.length}...`;
+                actualizarUI({ progreso: Math.floor(((i)/archivosQueue.length)*80), mensaje: msg });
 
-            contadoresTipo[item.tipo]++;
-            let nombreFinal = `${sigla}-${frente}-${ubicacion}-${fecha}_${modulo}_${item.tipo.toUpperCase()}${contadoresTipo[item.tipo]}.${item.extension}`;
+                contadoresTipo[item.tipo]++;
+                let nombreFinal = `${sigla}-${frente}-${ubicacion}-${fecha}_${modulo}_${item.tipo.toUpperCase()}${contadoresTipo[item.tipo]}.${item.extension}`;
 
-            try {
-                const r = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ action: 'upload', base64: item.base64, nombre: nombreFinal }) });
-                const res = await r.json();
-                
-                if(res.estado !== 'exito') {
-                    errores++;
-                    ultimoErrorTxt = res.mensaje || "Error desconocido devuelto por el servidor.";
-                } else {
-                    linksDeArchivos.push({ tipo: item.tipo, url: res.url });
+                try {
+                    const r = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ action: 'upload', base64: item.base64, nombre: nombreFinal }) });
+                    const res = await r.json();
+                    
+                    if(res.estado !== 'exito') {
+                        errores++;
+                        ultimoErrorTxt = res.mensaje || "Error desconocido devuelto por el servidor.";
+                    } else {
+                        linksDeArchivos.push({ tipo: item.tipo, url: res.url });
+                    }
+                } catch (e) { 
+                    errores++; 
+                    ultimoErrorTxt = e.message || e.toString();
                 }
-            } catch (e) { 
-                errores++; 
-                ultimoErrorTxt = e.message || e.toString();
             }
         }
 
+        // 2. ENVÍO DE TRAZABILIDAD Y NUEVOS DATOS (RCD/MEDIDORES)
         if(errores === 0) {
-            let resumenText = `Se cargaron: ${contadoresTipo['Foto']} Fotos, ${contadoresTipo['Video']} Videos, ${contadoresTipo['Audio']} Audios.`;
+            actualizarUI({ progreso: 90, mensaje: "Registrando trazabilidad..." });
             
-            // ENVÍO DE TRAZABILIDAD AGRUPADA
+            let resumenText = `Se cargaron: ${contadoresTipo['Foto']} Fotos, ${contadoresTipo['Video']} Videos, ${contadoresTipo['Audio']} Audios.`;
+            if (rcdActivo) resumenText += ` | + RCD reportado.`;
+            if (medidoresActivo) resumenText += ` | + Medidores reportados.`;
+            
             try {
                 const payloadTrazabilidad = {
                     action: 'trazabilidad',
@@ -592,37 +887,71 @@
                     ubicacion: ubicacion,
                     modulo: modulo,
                     resumen: resumenText,
-                    descripcion: descripcion
+                    descripcion: descripcion,
+                    datosRCD: payloadRCD,              // NUEVO DATO
+                    datosMedidores: payloadMedidores   // NUEVO DATO
                 };
-                await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify(payloadTrazabilidad) });
-            } catch (e) { console.log("Fallo trazabilidad, pero archivos subidos"); }
+                
+                const rTraz = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify(payloadTrazabilidad) });
+                const resTraz = await rTraz.json();
+                if(resTraz.estado !== 'exito') {
+                    console.error("Error guardando trazabilidad:", resTraz.mensaje);
+                }
+            } catch (e) { console.log("Fallo trazabilidad, pero se avanza"); }
 
-            // NUEVO TEXTO DE WHATSAPP TOTALMENTE LIMPIO (SIN EMOJIS) PARA EVITAR LOS SÍMBOLOS RAROS ""
+            // 3. ARMADO DE TEXTO PARA WHATSAPP (MÁS COMPLETO AHORA)
             let wsText = `*--- REPORTE DE OBRA - ${modulo} ---*\n`;
             wsText += `*Registra:* ${usuarioActual.nombre}\n`;
             wsText += `*Proyecto:* ${proyectoElegido}\n`;
             wsText += `*Ubicacion:* ${frente} - ${ubicacion}\n\n`;
             
+            if (rcdActivo && payloadRCD) {
+                wsText += `*[♻️ APROVECHAMIENTO RCD]*\n`;
+                wsText += `- *Tipo:* ${payloadRCD.tipoResiduo}\n`;
+                wsText += `- *Cantidad:* ${payloadRCD.cantidad} ${(payloadRCD.tipoResiduo === 'TIERRA' || payloadRCD.tipoResiduo === 'ESCOMBROS') ? 'M3' : 'KG'}\n`;
+                wsText += `- *Procedencia:* ${payloadRCD.procedencia}\n`;
+                wsText += `- *Uso:* ${payloadRCD.aprovechamiento}\n\n`;
+            }
+
+            if (medidoresActivo && payloadMedidores) {
+                wsText += `*[⚡ LECTURA DE MEDIDORES]*\n`;
+                if(payloadMedidores.agua) wsText += `- *Agua:* ${payloadMedidores.agua} M3\n`;
+                if(payloadMedidores.activa) wsText += `- *Energía Activa:* ${payloadMedidores.activa}\n`;
+                if(payloadMedidores.reactiva) wsText += `- *Energía Reactiva:* ${payloadMedidores.reactiva}\n`;
+                wsText += `\n`;
+            }
+
             if (descripcion !== "") {
                 wsText += `*Descripcion:*\n_${descripcion}_\n\n`;
             }
             
-            wsText += `*ARCHIVOS ADJUNTOS (${linksDeArchivos.length}):*\n`;
-            linksDeArchivos.forEach((file, index) => {
-                wsText += `- Archivo ${file.tipo} ${index + 1}: ${file.url}\n`;
-            });
+            if (linksDeArchivos.length > 0) {
+                wsText += `*ARCHIVOS ADJUNTOS (${linksDeArchivos.length}):*\n`;
+                linksDeArchivos.forEach((file, index) => {
+                    wsText += `- Archivo ${file.tipo} ${index + 1}: ${file.url}\n`;
+                });
+            } else {
+                wsText += `_Sin archivos multimedia adjuntos._\n`;
+            }
 
             let linkWa = `https://wa.me/?text=${encodeURIComponent(wsText)}`;
             let btnWhatsAppHTML = `<br><br><a href="${linkWa}" target="_blank" style="text-decoration:none;"><button class="btn-action btn-whatsapp" style="margin-top:0;">💬 COMPARTIR EN WHATSAPP</button></a>`;
 
+            // Limpieza del entorno post-envío
             archivosQueue = [];
-            actualizarUICola();
             document.getElementById('appUbicacion').value = '';
             document.getElementById('appDescripcion').value = '';
             
-            exitoLoader(`Reporte completado.<br><span style="font-size:12px;color:gray;">Archivos subidos exitosamente.</span>${btnWhatsAppHTML}`, 'vistaApp');
+            document.getElementById('chkRCD').checked = false;
+            document.getElementById('chkMedidores').checked = false;
+            toggleFormulario('formRCD', false);
+            toggleFormulario('formMedidores', false);
+            
+            actualizarUICola();
+            
+            exitoLoader(`Reporte completado exitosamente.${btnWhatsAppHTML}`, 'vistaApp');
         } else {
-            errorLoader(`Fallo en ${errores} archivo(s).<br><span style="font-size:11px;color:#ffb3b3;margin-top:10px;display:block;">Detalle: ${ultimoErrorTxt}</span>`);
+            errorLoader(`Fallo en la subida de ${errores} archivo(s).<br><span style="font-size:11px;color:#ffb3b3;margin-top:10px;display:block;">Detalle: ${ultimoErrorTxt}</span>`);
         }
     }
 
