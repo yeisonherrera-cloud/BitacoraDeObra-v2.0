@@ -454,14 +454,133 @@
 
                 clearInterval(simuladorEnMarcha);
                 document.getElementById("vistaLoader").classList.remove("is-processing");
-                cambiarVista('vistaLogin');
+                
+                // === INICIO DE LÓGICA DE CACHÉ (AUTO-LOGIN Y DRAFT) ===
+                const cachedUser = localStorage.getItem('usuarioActual');
+                if(cachedUser) {
+                    usuarioActual = JSON.parse(cachedUser);
+                    restaurarSesionYDraft();
+                } else {
+                    cambiarVista('vistaLogin');
+                }
+                // === FIN LÓGICA CACHÉ ===
+
             } else {
                 errorLoader("No se pudo cargar la base de datos.");
             }
         } catch (e) {
             errorLoader("Fallo de conexión al servidor.");
         }
+
+        // AUTO-GUARDADO DE CACHÉ AL ESCRIBIR
+        document.querySelectorAll('#vistaApp input, #vistaApp select, #vistaApp textarea').forEach(el => {
+            if(el.type !== 'file') {
+                el.addEventListener('change', guardarDraft);
+                el.addEventListener('input', guardarDraft);
+            }
+        });
     });
+
+    /* === FUNCIONES DE PERSISTENCIA (NUEVAS) === */
+    function guardarDraft() {
+        const draft = {
+            proyecto: document.getElementById('appProyecto').value,
+            frente: document.getElementById('appFrente').value,
+            ubicacion: document.getElementById('appUbicacion').value,
+            descripcion: document.getElementById('appDescripcion').value,
+            chkRCD: document.getElementById('chkRCD').checked,
+            chkMedidores: document.getElementById('chkMedidores').checked,
+            rcdTipo: document.getElementById('rcdTipo').value,
+            rcdCantidad: document.getElementById('rcdCantidad').value,
+            rcdProcedencia: document.getElementById('rcdProcedencia').value,
+            rcdAprovechamiento: document.getElementById('rcdAprovechamiento').value,
+            medAgua: document.getElementById('medAgua').value,
+            medActiva: document.getElementById('medActiva').value,
+            medReactiva: document.getElementById('medReactiva').value
+        };
+        localStorage.setItem('reporteDraft', JSON.stringify(draft));
+    }
+
+    function restaurarSesionYDraft() {
+        // Restaurar Sesión UI
+        document.getElementById('infoUsuarioNombre').innerText = usuarioActual.nombre;
+        document.getElementById('infoUsuarioCedula').innerText = `CC: ${usuarioActual.cedula}`;
+        document.getElementById('infoUsuarioCorreo').innerText = usuarioActual.correo;
+        
+        const selectProyecto = document.getElementById('appProyecto');
+        selectProyecto.innerHTML = ''; 
+        Object.keys(dbProyectos).forEach(p => {
+            if (p.toUpperCase() === 'PERSONAL DISPERSO - OBRAS MANIZALES' && usuarioActual.proyecto.toUpperCase() !== 'PERSONAL DISPERSO - OBRAS MANIZALES') return;
+            let opt = document.createElement('option'); opt.value = p; opt.text = p;
+            selectProyecto.appendChild(opt);
+        });
+        
+        const badge = document.getElementById('badgeModulo');
+        badge.style.display = 'block';
+        if (usuarioActual.modulo === 'SST') {
+            badge.innerText = '🛡️ SST';
+            badge.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+        } else {
+            badge.innerText = '🏗️ OBRA';
+            badge.style.background = 'linear-gradient(135deg, #0575e6, #021b79)';
+        }
+
+        // Restaurar Draft (Texto y Opciones)
+        const draftStr = localStorage.getItem('reporteDraft');
+        if (draftStr) {
+            try {
+                const draft = JSON.parse(draftStr);
+                
+                if (draft.proyecto) { document.getElementById('appProyecto').value = draft.proyecto; actualizarFrentes(); }
+                else { selectProyecto.value = usuarioActual.proyecto; actualizarFrentes(); }
+                
+                if (draft.frente) { document.getElementById('appFrente').value = draft.frente; evaluarFrenteGeneral(); }
+                
+                document.getElementById('appUbicacion').value = draft.ubicacion || '';
+                document.getElementById('appDescripcion').value = draft.descripcion || '';
+                
+                document.getElementById('chkRCD').checked = draft.chkRCD || false;
+                document.getElementById('chkMedidores').checked = draft.chkMedidores || false;
+                toggleFormulario('formRCD', draft.chkRCD);
+                toggleFormulario('formMedidores', draft.chkMedidores);
+
+                document.getElementById('rcdTipo').value = draft.rcdTipo || '';
+                actualizarUnidadRCD();
+                document.getElementById('rcdCantidad').value = draft.rcdCantidad || '';
+                document.getElementById('rcdProcedencia').value = draft.rcdProcedencia || '';
+                document.getElementById('rcdAprovechamiento').value = draft.rcdAprovechamiento || '';
+
+                document.getElementById('medAgua').value = draft.medAgua || '';
+                document.getElementById('medActiva').value = draft.medActiva || '';
+                document.getElementById('medReactiva').value = draft.medReactiva || '';
+            } catch(e) {}
+        } else {
+            selectProyecto.value = usuarioActual.proyecto;
+            actualizarFrentes();
+        }
+
+        // Restaurar Archivos en Cola (Manejando límite de memoria del navegador)
+        const savedArchivos = localStorage.getItem('archivosQueue');
+        if(savedArchivos) {
+            try {
+                archivosQueue = JSON.parse(savedArchivos);
+                actualizarUICola();
+            } catch(e) {}
+        }
+
+        cambiarVista('vistaApp');
+    }
+
+    function guardarArchivosEnCache() {
+        try {
+            // Se usa try/catch porque el navegador solo permite guardar 5MB en caché.
+            // Si el video es muy pesado, no se guarda el video para evitar error, pero sí el texto.
+            localStorage.setItem('archivosQueue', JSON.stringify(archivosQueue));
+        } catch(e) {
+            console.warn("Memoria límite alcanzada en caché para archivos.");
+        }
+    }
+    /* === FIN FUNCIONES DE PERSISTENCIA === */
 
     async function iniciarSesion() {
       const nombre = document.getElementById('loginNombre').value.trim().toUpperCase();
@@ -508,6 +627,7 @@
               badge.style.background = 'linear-gradient(135deg, #0575e6, #021b79)';
           }
 
+          localStorage.setItem('usuarioActual', JSON.stringify(res)); // CACHÉ: GUARDAR USUARIO
           document.getElementById('loginPassword').value = ''; 
           exitoLoader(`Bienvenido al sistema,<br><b style="color:white;">${res.nombre}</b>`, 'vistaApp');
         } else errorLoader(res.mensaje);
@@ -649,6 +769,12 @@
     function cerrarSesion() {
         usuarioActual = {};
         archivosQueue = [];
+        
+        // CACHÉ: LIMPIAR AL CERRAR SESIÓN
+        localStorage.removeItem('usuarioActual');
+        localStorage.removeItem('reporteDraft');
+        localStorage.removeItem('archivosQueue');
+
         actualizarUICola();
         document.getElementById('appUbicacion').value = '';
         document.getElementById('appDescripcion').value = '';
@@ -718,12 +844,14 @@
       reader.readAsDataURL(blob);
       reader.onloadend = function() {
           archivosQueue.push({ base64: reader.result, tipo: tipo, extension: extension });
+          guardarArchivosEnCache(); // CACHÉ: ACTUALIZAR ARCHIVOS
           actualizarUICola();
       }
     }
 
     function removerDeCola(index) {
         archivosQueue.splice(index, 1);
+        guardarArchivosEnCache(); // CACHÉ: ACTUALIZAR ARCHIVOS
         actualizarUICola();
     }
 
@@ -937,8 +1065,11 @@
             let linkWa = `https://wa.me/?text=${encodeURIComponent(wsText)}`;
             let btnWhatsAppHTML = `<br><br><a href="${linkWa}" target="_blank" style="text-decoration:none;"><button class="btn-action btn-whatsapp" style="margin-top:0;">💬 COMPARTIR EN WHATSAPP</button></a>`;
 
-            // Limpieza del entorno post-envío
+            // Limpieza del entorno post-envío y borrado de caché
             archivosQueue = [];
+            localStorage.removeItem('reporteDraft');
+            localStorage.removeItem('archivosQueue');
+
             document.getElementById('appUbicacion').value = '';
             document.getElementById('appDescripcion').value = '';
             
