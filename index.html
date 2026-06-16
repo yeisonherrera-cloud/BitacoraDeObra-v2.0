@@ -109,9 +109,9 @@
         display: none;
     }
 
-    /* ESTILOS PARA LA NUEVA SECCIÓN DE OPCIONES GENERALES */
+    /* ESTILOS PARA LA SECCIÓN DE OPCIONES GENERALES (RCD/MEDIDORES) */
     .opciones-general-container {
-        display: none; /* Oculto por defecto, se muestra por JS */
+        display: none; 
         background: rgba(255,255,255,0.02);
         border: 1px solid rgba(0, 242, 96, 0.2);
         border-radius: 12px;
@@ -168,9 +168,8 @@
         letter-spacing: 0.5px;
     }
 
-    /* Formularios desplegables para RCD y Medidores */
     .sub-formulario {
-        display: none; /* Oculto por defecto */
+        display: none; 
         background: rgba(0,0,0,0.4);
         padding: 15px;
         border-radius: 10px;
@@ -200,11 +199,11 @@
     .unidad-hint {
         position: absolute;
         right: 15px;
-        top: 42px; /* Alineado verticalmente con el input */
+        top: 42px; 
         font-size: 12px;
         color: #94a3b8;
         font-weight: bold;
-        pointer-events: none; /* Para que no interfiera con el click en el input */
+        pointer-events: none; 
     }
     
     .input-wrapper-hint {
@@ -317,7 +316,7 @@
         </div>
     </div>
 
-    <!-- NUEVA SECCIÓN: OPCIONES GENERALES (Solo se muestra si Frente contiene "GENERAL") -->
+    <!-- OPCIONES GENERALES (Solo se muestra si Frente contiene "GENERAL") -->
     <div id="opcionesGeneral" class="opciones-general-container">
         <label style="color: #00f260; margin-bottom: 12px;">OPCIONES DE REPORTE ESPECIAL</label>
         
@@ -414,7 +413,6 @@
   <div class="footer">Desarrollado por ⚡ Obras Manizales ⚡</div>
 
   <script>
-    // REEMPLAZAR CON TU NUEVA URL GENERADA AL IMPLEMENTAR EL BACKEND (PASO 2)
     const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbxJW36iyRL1szzULJrj7iS4RSLaEr65gWnKSetnzwRkAH8vB-m-BC4cTzmtfQ763L8/exec'; 
     
     let dbUsuarios = [];
@@ -426,8 +424,40 @@
     let ultimaVista = 'vistaLogin';
     let cedulaParaReasignar = "";
 
+    /* === LÓGICA DE INDEXEDDB PARA ARCHIVOS PESADOS === */
+    let dbArchivos;
+    function initDB() {
+        return new Promise((resolve) => {
+            const req = indexedDB.open('GaliasArchivosDB', 1);
+            req.onupgradeneeded = e => e.target.result.createObjectStore('archivos');
+            req.onsuccess = e => { dbArchivos = e.target.result; resolve(); };
+            req.onerror = () => resolve(); 
+        });
+    }
+    function guardarArchivosEnIndexedDB(cola) {
+        if(!dbArchivos) return;
+        const tx = dbArchivos.transaction('archivos', 'readwrite');
+        tx.objectStore('archivos').put(cola, 'queue');
+    }
+    function cargarArchivosDeIndexedDB() {
+        return new Promise(resolve => {
+            if(!dbArchivos) return resolve([]);
+            const tx = dbArchivos.transaction('archivos', 'readonly');
+            const req = tx.objectStore('archivos').get('queue');
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+        });
+    }
+    function borrarArchivosDeIndexedDB() {
+        if(!dbArchivos) return;
+        const tx = dbArchivos.transaction('archivos', 'readwrite');
+        tx.objectStore('archivos').delete('queue');
+    }
+    /* ================================================ */
+
     window.addEventListener('DOMContentLoaded', async () => {
         mostrarLoader("Iniciando Sistema");
+        await initDB(); // INICIALIZAR BASE DE DATOS DE ALTA CAPACIDAD ANTES DE NADA
         try {
             const response = await fetch(URL_APPS_SCRIPT, {
                 method: 'POST',
@@ -481,7 +511,7 @@
         });
     });
 
-    /* === FUNCIONES DE PERSISTENCIA (NUEVAS) === */
+    /* === FUNCIONES DE PERSISTENCIA (TEXTOS Y ARCHIVOS) === */
     function guardarDraft() {
         const draft = {
             proyecto: document.getElementById('appProyecto').value,
@@ -559,26 +589,19 @@
             actualizarFrentes();
         }
 
-        // Restaurar Archivos en Cola (Manejando límite de memoria del navegador)
-        const savedArchivos = localStorage.getItem('archivosQueue');
-        if(savedArchivos) {
-            try {
-                archivosQueue = JSON.parse(savedArchivos);
+        // Restaurar Archivos en Cola usando IndexedDB (Alta Capacidad)
+        cargarArchivosDeIndexedDB().then(archivosGuardados => {
+            if(archivosGuardados && archivosGuardados.length > 0) {
+                archivosQueue = archivosGuardados;
                 actualizarUICola();
-            } catch(e) {}
-        }
+            }
+        });
 
         cambiarVista('vistaApp');
     }
 
     function guardarArchivosEnCache() {
-        try {
-            // Se usa try/catch porque el navegador solo permite guardar 5MB en caché.
-            // Si el video es muy pesado, no se guarda el video para evitar error, pero sí el texto.
-            localStorage.setItem('archivosQueue', JSON.stringify(archivosQueue));
-        } catch(e) {
-            console.warn("Memoria límite alcanzada en caché para archivos.");
-        }
+        guardarArchivosEnIndexedDB(archivosQueue);
     }
     /* === FIN FUNCIONES DE PERSISTENCIA === */
 
@@ -605,12 +628,8 @@
           selectProyecto.innerHTML = ''; 
           
           Object.keys(dbProyectos).forEach(p => {
-              if (p.toUpperCase() === 'PERSONAL DISPERSO - OBRAS MANIZALES' && res.proyecto.toUpperCase() !== 'PERSONAL DISPERSO - OBRAS MANIZALES') {
-                  return; 
-              }
-              let opt = document.createElement('option'); 
-              opt.value = p; 
-              opt.text = p;
+              if (p.toUpperCase() === 'PERSONAL DISPERSO - OBRAS MANIZALES' && res.proyecto.toUpperCase() !== 'PERSONAL DISPERSO - OBRAS MANIZALES') return;
+              let opt = document.createElement('option'); opt.value = p; opt.text = p;
               selectProyecto.appendChild(opt);
           });
           
@@ -647,11 +666,9 @@
                 frentesDropdown.appendChild(opt);
             });
         }
-        // Limpiar formularios extra al cambiar de proyecto/frente
         evaluarFrenteGeneral();
     }
 
-    /* === NUEVAS FUNCIONES PARA LOS FORMULARIOS GENERALES (RCD/MEDIDORES) === */
     function evaluarFrenteGeneral() {
         const frenteSeleccionado = document.getElementById('appFrente').value.toUpperCase();
         const contenedorOpciones = document.getElementById('opcionesGeneral');
@@ -660,7 +677,6 @@
             contenedorOpciones.style.display = "block";
         } else {
             contenedorOpciones.style.display = "none";
-            // Limpiar y ocultar todo si no es general
             document.getElementById('chkRCD').checked = false;
             document.getElementById('chkMedidores').checked = false;
             toggleFormulario('formRCD', false);
@@ -673,7 +689,6 @@
         form.style.display = mostrar ? "block" : "none";
         
         if (!mostrar) {
-            // Limpiar datos si se oculta
             if (idFormulario === 'formRCD') {
                 document.getElementById('rcdTipo').value = "";
                 document.getElementById('rcdCantidad').value = "";
@@ -686,6 +701,7 @@
                 document.getElementById('medReactiva').value = "";
             }
         }
+        guardarDraft(); // Registrar cambio en caché
     }
 
     function actualizarUnidadRCD() {
@@ -699,8 +715,8 @@
         } else {
             hintUnidad.innerText = "";
         }
+        guardarDraft();
     }
-    /* ========================================================================= */
 
     function validarCorreoRegex(correo) {
         const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
@@ -773,7 +789,7 @@
         // CACHÉ: LIMPIAR AL CERRAR SESIÓN
         localStorage.removeItem('usuarioActual');
         localStorage.removeItem('reporteDraft');
-        localStorage.removeItem('archivosQueue');
+        borrarArchivosDeIndexedDB(); // LIMPIAR BD DE ARCHIVOS
 
         actualizarUICola();
         document.getElementById('appUbicacion').value = '';
@@ -781,7 +797,6 @@
         document.getElementById('loginPassword').value = '';
         document.getElementById('badgeModulo').style.display = 'none';
         
-        // Resetear también los nuevos formularios
         document.getElementById('appFrente').value = '';
         evaluarFrenteGeneral();
 
@@ -844,14 +859,14 @@
       reader.readAsDataURL(blob);
       reader.onloadend = function() {
           archivosQueue.push({ base64: reader.result, tipo: tipo, extension: extension });
-          guardarArchivosEnCache(); // CACHÉ: ACTUALIZAR ARCHIVOS
+          guardarArchivosEnCache(); // CACHÉ: GUARDAR EN INDEXEDDB
           actualizarUICola();
       }
     }
 
     function removerDeCola(index) {
         archivosQueue.splice(index, 1);
-        guardarArchivosEnCache(); // CACHÉ: ACTUALIZAR ARCHIVOS
+        guardarArchivosEnCache(); // CACHÉ: ACTUALIZAR EN INDEXEDDB
         actualizarUICola();
     }
 
@@ -863,10 +878,7 @@
         if(archivosQueue.length === 0) {
             queueList.innerHTML = "No hay archivos pendientes.";
             
-            // Ocultamos el botón SOLAMENTE SI NO ESTÁN LOS CHECKS ACTIVADOS
-            // Ahora permitiremos enviar reporte sin fotos si se llena RCD o Medidores
             const tieneChecksActivos = document.getElementById('chkRCD').checked || document.getElementById('chkMedidores').checked;
-            
             if(!tieneChecksActivos) {
                 document.getElementById('btnEnviarReporte').style.display = 'none';
             }
@@ -889,7 +901,6 @@
     document.getElementById('chkRCD').addEventListener('change', () => { if(archivosQueue.length === 0) actualizarUICola(); else document.getElementById('btnEnviarReporte').style.display = 'block'; });
     document.getElementById('chkMedidores').addEventListener('change', () => { if(archivosQueue.length === 0) actualizarUICola(); else document.getElementById('btnEnviarReporte').style.display = 'block'; });
 
-
     function obtenerFechaFormateada() {
         const d = new Date();
         const p = (n) => n.toString().padStart(2, '0');
@@ -907,7 +918,6 @@
         const ubicacion = document.getElementById('appUbicacion').value.trim().toUpperCase();
         const descripcion = document.getElementById('appDescripcion').value.trim();
         
-        // Verificación de los checkboxes
         const rcdActivo = document.getElementById('chkRCD').checked;
         const medidoresActivo = document.getElementById('chkMedidores').checked;
 
@@ -915,12 +925,10 @@
         if(!frente) return alert("⚠️ Debe seleccionar un FRENTE.");
         if(!ubicacion) return alert("⚠️ Debe ingresar una UBICACIÓN.");
         
-        // Exigir al menos un archivo O que haya marcado un checkbox
         if(archivosQueue.length === 0 && !rcdActivo && !medidoresActivo) {
             return alert("Agregue al menos un archivo o reporte un formulario especial.");
         }
 
-        // === RECOLECCIÓN DE DATOS DE LOS NUEVOS FORMULARIOS ===
         let payloadRCD = null;
         if (rcdActivo) {
             const rcdTipo = document.getElementById('rcdTipo').value;
@@ -946,7 +954,6 @@
             const medActiva = document.getElementById('medActiva').value;
             const medReactiva = document.getElementById('medReactiva').value;
 
-            // Se exige al menos llenar un campo si el check está activo
             if(!medAgua && !medActiva && !medReactiva) {
                  return alert("⚠️ Por favor, ingrese al menos una lectura en el formulario de Medidores.");
             }
@@ -957,7 +964,6 @@
                 reactiva: medReactiva
             };
         }
-        // =========================================================
 
         const infoProy = dbProyectos[proyectoElegido];
         const sigla = infoProy ? infoProy.sigla : "S-S";
@@ -970,7 +976,6 @@
         let contadoresTipo = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
         let linksDeArchivos = []; 
 
-        // 1. SUBIDA DE ARCHIVOS (Solo si hay)
         if (archivosQueue.length > 0) {
             for(let i=0; i<archivosQueue.length; i++) {
                 let item = archivosQueue[i];
@@ -997,7 +1002,6 @@
             }
         }
 
-        // 2. ENVÍO DE TRAZABILIDAD Y NUEVOS DATOS (RCD/MEDIDORES)
         if(errores === 0) {
             actualizarUI({ progreso: 90, mensaje: "Registrando trazabilidad..." });
             
@@ -1016,8 +1020,8 @@
                     modulo: modulo,
                     resumen: resumenText,
                     descripcion: descripcion,
-                    datosRCD: payloadRCD,              // NUEVO DATO
-                    datosMedidores: payloadMedidores   // NUEVO DATO
+                    datosRCD: payloadRCD,
+                    datosMedidores: payloadMedidores
                 };
                 
                 const rTraz = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify(payloadTrazabilidad) });
@@ -1027,7 +1031,6 @@
                 }
             } catch (e) { console.log("Fallo trazabilidad, pero se avanza"); }
 
-            // 3. ARMADO DE TEXTO PARA WHATSAPP (MÁS COMPLETO AHORA)
             let wsText = `*--- REPORTE DE OBRA - ${modulo} ---*\n`;
             wsText += `*Registra:* ${usuarioActual.nombre}\n`;
             wsText += `*Proyecto:* ${proyectoElegido}\n`;
@@ -1068,7 +1071,7 @@
             // Limpieza del entorno post-envío y borrado de caché
             archivosQueue = [];
             localStorage.removeItem('reporteDraft');
-            localStorage.removeItem('archivosQueue');
+            borrarArchivosDeIndexedDB(); // LIMPIAR BD DE ARCHIVOS
 
             document.getElementById('appUbicacion').value = '';
             document.getElementById('appDescripcion').value = '';
