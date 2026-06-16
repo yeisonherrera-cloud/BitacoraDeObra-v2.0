@@ -56,6 +56,8 @@
     .btn-foto:hover { background: #059669; color: white; }
     .btn-video { background: rgba(124, 58, 237, 0.1); border: 1px solid #7c3aed; color: #a78bfa; }
     .btn-video:hover { background: #7c3aed; color: white; }
+    .btn-galeria { background: rgba(14, 165, 233, 0.1); border: 1px solid #0ea5e9; color: #38bdf8; }
+    .btn-galeria:hover { background: #0ea5e9; color: white; }
     .btn-error { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 4px 15px rgba(255, 75, 43, 0.3); }
     .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); }
     .btn-info { background: linear-gradient(135deg, #0575e6, #021b79); box-shadow: 0 4px 15px rgba(5, 117, 230, 0.3); }
@@ -389,14 +391,20 @@
       <textarea id="appDescripcion" rows="3" placeholder="Detalles de la labor, novedades, observaciones..."></textarea>
     </div>
 
+    <!-- SECCIÓN MULTIMEDIA ACTUALIZADA -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
         <input type="file" id="inputFoto" accept="image/*" capture="environment">
-        <button class="btn-action btn-foto" onclick="document.getElementById('inputFoto').click()">📸 TOMAR FOTO</button>
+        <button class="btn-action btn-foto" onclick="document.getElementById('inputFoto').click()" style="margin-top: 0;">📸 TOMAR FOTO</button>
         
         <input type="file" id="inputVideo" accept="video/*" capture="environment">
-        <button class="btn-action btn-video" onclick="document.getElementById('inputVideo').click()">🎥 GRABAR VIDEO</button>
+        <button class="btn-action btn-video" onclick="document.getElementById('inputVideo').click()" style="margin-top: 0;">🎥 GRABAR VIDEO</button>
     </div>
-    <button id="btnGrabarAudio" class="btn-action">🎤 GRABAR AUDIO</button>
+    
+    <!-- NUEVO BOTÓN: ADJUNTAR DESDE LA GALERÍA -->
+    <input type="file" id="inputGaleria" accept="image/*,video/*" multiple>
+    <button class="btn-action btn-galeria" onclick="document.getElementById('inputGaleria').click()" style="margin-top: 0; margin-bottom: 10px;">📁 ADJUNTAR DE GALERÍA</button>
+
+    <button id="btnGrabarAudio" class="btn-action" style="margin-top: 0;">🎤 GRABAR AUDIO</button>
     <div id="cronometro">00:00</div>
 
     <div class="queue-container">
@@ -842,6 +850,27 @@
     document.getElementById('inputFoto').addEventListener('change', e => procesarArchivoLocal(e, 'Foto'));
     document.getElementById('inputVideo').addEventListener('change', e => procesarArchivoLocal(e, 'Video'));
 
+    // NUEVO EVENTO PARA PROCESAR MÚLTIPLES ARCHIVOS DESDE LA GALERÍA
+    document.getElementById('inputGaleria').addEventListener('change', e => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+        
+        for (let i = 0; i < files.length; i++) {
+            const archivo = files[i];
+            if (archivo.size > 40 * 1024 * 1024) { 
+                alert(`El archivo ${archivo.name} es muy pesado (Máx 40MB).`); 
+                continue; 
+            }
+            
+            let tipo = archivo.type.includes('video') ? 'Video' : 'Foto';
+            let extension = archivo.name.split('.').pop().toLowerCase();
+            if (tipo === 'Video' && (!extension || extension === '')) extension = 'mp4'; 
+            
+            agregarACola(archivo, tipo, extension);
+        }
+        e.target.value = ""; // Limpiar input para permitir seleccionar la misma foto después si se borra
+    });
+
     function procesarArchivoLocal(e, tipo) {
       const archivo = e.target.files[0];
       if (!archivo) return;
@@ -904,7 +933,7 @@
     function obtenerFechaFormateada() {
         const d = new Date();
         const p = (n) => n.toString().padStart(2, '0');
-        return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
+        return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()}`;
     }
 
     async function enviarReporteEnCola() {
