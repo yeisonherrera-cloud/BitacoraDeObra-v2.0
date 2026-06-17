@@ -110,107 +110,6 @@
         z-index: 100; 
         display: none;
     }
-
-    /* ESTILOS PARA LA SECCIÓN DE OPCIONES GENERALES (RCD/MEDIDORES) */
-    .opciones-general-container {
-        display: none; 
-        background: rgba(255,255,255,0.02);
-        border: 1px solid rgba(0, 242, 96, 0.2);
-        border-radius: 12px;
-        padding: 15px;
-        margin-bottom: 20px;
-        text-align: left;
-    }
-
-    .checkbox-wrapper {
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-        cursor: pointer;
-    }
-
-    .checkbox-wrapper:last-child {
-        margin-bottom: 0;
-    }
-
-    .checkbox-wrapper input[type="checkbox"] {
-        display: none;
-    }
-
-    .checkbox-custom {
-        width: 20px;
-        height: 20px;
-        border: 2px solid #00f260;
-        border-radius: 6px;
-        margin-right: 12px;
-        position: relative;
-        transition: all 0.2s ease;
-        background: rgba(0,0,0,0.5);
-    }
-
-    .checkbox-wrapper input[type="checkbox"]:checked + .checkbox-custom {
-        background: #00f260;
-    }
-
-    .checkbox-wrapper input[type="checkbox"]:checked + .checkbox-custom::after {
-        content: "✓";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: #04090b;
-        font-weight: bold;
-        font-size: 14px;
-    }
-
-    .checkbox-label {
-        font-size: 13px;
-        font-weight: 600;
-        color: #e2e8f0;
-        letter-spacing: 0.5px;
-    }
-
-    .sub-formulario {
-        display: none; 
-        background: rgba(0,0,0,0.4);
-        padding: 15px;
-        border-radius: 10px;
-        margin-top: 15px;
-        border-left: 3px solid #00f260;
-        animation: fadeSlideUp 0.3s ease forwards;
-    }
-
-    .sub-formulario.medidores {
-        border-left-color: #0575e6;
-    }
-
-    .sub-formulario h3 {
-        margin-top: 0;
-        font-size: 14px;
-        color: #00f260;
-        margin-bottom: 15px;
-        text-transform: uppercase;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        padding-bottom: 5px;
-    }
-
-    .sub-formulario.medidores h3 {
-        color: #0575e6;
-    }
-
-    .unidad-hint {
-        position: absolute;
-        right: 15px;
-        top: 42px; 
-        font-size: 12px;
-        color: #94a3b8;
-        font-weight: bold;
-        pointer-events: none; 
-    }
-    
-    .input-wrapper-hint {
-        position: relative;
-    }
   </style>
 </head>
 <body>
@@ -310,79 +209,11 @@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
         <div class="input-group">
           <label>FRENTE</label>
-          <select id="appFrente" onchange="evaluarFrenteGeneral()"><option value="">Seleccione...</option></select>
+          <select id="appFrente"><option value="">Seleccione...</option></select>
         </div>
         <div class="input-group">
           <label>UBICACIÓN</label>
           <input type="text" id="appUbicacion" placeholder="Ej. Zanja Norte">
-        </div>
-    </div>
-
-    <!-- OPCIONES GENERALES (Solo se muestra si Frente contiene "GENERAL") -->
-    <div id="opcionesGeneral" class="opciones-general-container">
-        <label style="color: #00f260; margin-bottom: 12px;">OPCIONES DE REPORTE ESPECIAL</label>
-        
-        <label class="checkbox-wrapper">
-            <input type="checkbox" id="chkRCD" onchange="toggleFormulario('formRCD', this.checked)">
-            <div class="checkbox-custom"></div>
-            <span class="checkbox-label">APROVECHAMIENTO RCD</span>
-        </label>
-
-        <label class="checkbox-wrapper">
-            <input type="checkbox" id="chkMedidores" onchange="toggleFormulario('formMedidores', this.checked)">
-            <div class="checkbox-custom"></div>
-            <span class="checkbox-label">LECTURA DE MEDIDORES</span>
-        </label>
-    </div>
-
-    <!-- FORMULARIO RCD -->
-    <div id="formRCD" class="sub-formulario">
-        <h3>🌱 Aprovechamiento RCD</h3>
-        <div class="input-group">
-            <label>TIPO DE RESIDUO</label>
-            <select id="rcdTipo" onchange="actualizarUnidadRCD()">
-                <option value="">Seleccione...</option>
-                <option value="TIERRA">TIERRA</option>
-                <option value="ESCOMBROS">ESCOMBROS</option>
-                <option value="ACERO - HIERRO">ACERO - HIERRO</option>
-                <option value="MADERA">MADERA</option>
-                <option value="PVC">PVC</option>
-            </select>
-        </div>
-        <div class="input-group input-wrapper-hint">
-            <label>CANTIDAD DEL MATERIAL</label>
-            <input type="number" id="rcdCantidad" placeholder="0" step="any">
-            <span id="rcdUnidad" class="unidad-hint"></span>
-        </div>
-        <div class="input-group">
-            <label>PROCEDENCIA DEL MATERIAL (FRENTE)</label>
-            <input type="text" id="rcdProcedencia" placeholder="Frente de trabajo origen">
-        </div>
-        <div class="input-group" style="margin-bottom: 0;">
-            <label>TIPO DE APROVECHAMIENTO</label>
-            <input type="text" id="rcdAprovechamiento" placeholder="Detalle del uso">
-        </div>
-    </div>
-
-    <!-- FORMULARIO MEDIDORES -->
-    <div id="formMedidores" class="sub-formulario medidores">
-        <h3>⚡ Lectura de Medidores</h3>
-        <div class="input-group input-wrapper-hint">
-            <label>MEDIDOR DE AGUA (Consumo)</label>
-            <input type="number" id="medAgua" placeholder="0" step="any">
-            <span class="unidad-hint">M3</span>
-        </div>
-        
-        <label style="color:#0575e6; margin-top: 20px; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 15px;">MEDIDOR DE ENERGÍA</label>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div class="input-group" style="margin-bottom: 0;">
-                <label style="font-size: 10px;">ENERGÍA ACTIVA</label>
-                <input type="number" id="medActiva" placeholder="0" step="any">
-            </div>
-            <div class="input-group" style="margin-bottom: 0;">
-                <label style="font-size: 10px;">ENERGÍA REACTIVA</label>
-                <input type="number" id="medReactiva" placeholder="0" step="any">
-            </div>
         </div>
     </div>
 
@@ -400,7 +231,7 @@
         <button class="btn-action btn-video" onclick="document.getElementById('inputVideo').click()" style="margin-top: 0;">🎥 GRABAR VIDEO</button>
     </div>
     
-    <!-- NUEVO BOTÓN: ADJUNTAR DESDE LA GALERÍA -->
+    <!-- BOTÓN: ADJUNTAR DESDE LA GALERÍA -->
     <input type="file" id="inputGaleria" accept="image/*,video/*" multiple>
     <button class="btn-action btn-galeria" onclick="document.getElementById('inputGaleria').click()" style="margin-top: 0; margin-bottom: 10px;">📁 ADJUNTAR DE GALERÍA</button>
 
@@ -525,16 +356,7 @@
             proyecto: document.getElementById('appProyecto').value,
             frente: document.getElementById('appFrente').value,
             ubicacion: document.getElementById('appUbicacion').value,
-            descripcion: document.getElementById('appDescripcion').value,
-            chkRCD: document.getElementById('chkRCD').checked,
-            chkMedidores: document.getElementById('chkMedidores').checked,
-            rcdTipo: document.getElementById('rcdTipo').value,
-            rcdCantidad: document.getElementById('rcdCantidad').value,
-            rcdProcedencia: document.getElementById('rcdProcedencia').value,
-            rcdAprovechamiento: document.getElementById('rcdAprovechamiento').value,
-            medAgua: document.getElementById('medAgua').value,
-            medActiva: document.getElementById('medActiva').value,
-            medReactiva: document.getElementById('medReactiva').value
+            descripcion: document.getElementById('appDescripcion').value
         };
         localStorage.setItem('reporteDraft', JSON.stringify(draft));
     }
@@ -572,25 +394,10 @@
                 if (draft.proyecto) { document.getElementById('appProyecto').value = draft.proyecto; actualizarFrentes(); }
                 else { selectProyecto.value = usuarioActual.proyecto; actualizarFrentes(); }
                 
-                if (draft.frente) { document.getElementById('appFrente').value = draft.frente; evaluarFrenteGeneral(); }
+                if (draft.frente) { document.getElementById('appFrente').value = draft.frente; }
                 
                 document.getElementById('appUbicacion').value = draft.ubicacion || '';
                 document.getElementById('appDescripcion').value = draft.descripcion || '';
-                
-                document.getElementById('chkRCD').checked = draft.chkRCD || false;
-                document.getElementById('chkMedidores').checked = draft.chkMedidores || false;
-                toggleFormulario('formRCD', draft.chkRCD);
-                toggleFormulario('formMedidores', draft.chkMedidores);
-
-                document.getElementById('rcdTipo').value = draft.rcdTipo || '';
-                actualizarUnidadRCD();
-                document.getElementById('rcdCantidad').value = draft.rcdCantidad || '';
-                document.getElementById('rcdProcedencia').value = draft.rcdProcedencia || '';
-                document.getElementById('rcdAprovechamiento').value = draft.rcdAprovechamiento || '';
-
-                document.getElementById('medAgua').value = draft.medAgua || '';
-                document.getElementById('medActiva').value = draft.medActiva || '';
-                document.getElementById('medReactiva').value = draft.medReactiva || '';
             } catch(e) {}
         } else {
             selectProyecto.value = usuarioActual.proyecto;
@@ -674,56 +481,6 @@
                 frentesDropdown.appendChild(opt);
             });
         }
-        evaluarFrenteGeneral();
-    }
-
-    function evaluarFrenteGeneral() {
-        const frenteSeleccionado = document.getElementById('appFrente').value.toUpperCase();
-        const contenedorOpciones = document.getElementById('opcionesGeneral');
-        
-        if (frenteSeleccionado.includes("GENERAL")) {
-            contenedorOpciones.style.display = "block";
-        } else {
-            contenedorOpciones.style.display = "none";
-            document.getElementById('chkRCD').checked = false;
-            document.getElementById('chkMedidores').checked = false;
-            toggleFormulario('formRCD', false);
-            toggleFormulario('formMedidores', false);
-        }
-    }
-
-    function toggleFormulario(idFormulario, mostrar) {
-        const form = document.getElementById(idFormulario);
-        form.style.display = mostrar ? "block" : "none";
-        
-        if (!mostrar) {
-            if (idFormulario === 'formRCD') {
-                document.getElementById('rcdTipo').value = "";
-                document.getElementById('rcdCantidad').value = "";
-                document.getElementById('rcdProcedencia').value = "";
-                document.getElementById('rcdAprovechamiento').value = "";
-                document.getElementById('rcdUnidad').innerText = "";
-            } else if (idFormulario === 'formMedidores') {
-                document.getElementById('medAgua').value = "";
-                document.getElementById('medActiva').value = "";
-                document.getElementById('medReactiva').value = "";
-            }
-        }
-        guardarDraft(); // Registrar cambio en caché
-    }
-
-    function actualizarUnidadRCD() {
-        const tipo = document.getElementById('rcdTipo').value;
-        const hintUnidad = document.getElementById('rcdUnidad');
-        
-        if (tipo === "TIERRA" || tipo === "ESCOMBROS") {
-            hintUnidad.innerText = "M3";
-        } else if (tipo === "ACERO - HIERRO" || tipo === "MADERA" || tipo === "PVC") {
-            hintUnidad.innerText = "KG";
-        } else {
-            hintUnidad.innerText = "";
-        }
-        guardarDraft();
     }
 
     function validarCorreoRegex(correo) {
@@ -806,8 +563,7 @@
         document.getElementById('badgeModulo').style.display = 'none';
         
         document.getElementById('appFrente').value = '';
-        evaluarFrenteGeneral();
-
+        
         cambiarVista('vistaLogin');
     }
 
@@ -850,7 +606,7 @@
     document.getElementById('inputFoto').addEventListener('change', e => procesarArchivoLocal(e, 'Foto'));
     document.getElementById('inputVideo').addEventListener('change', e => procesarArchivoLocal(e, 'Video'));
 
-    // NUEVO EVENTO PARA PROCESAR MÚLTIPLES ARCHIVOS DESDE LA GALERÍA
+    // EVENTO PARA PROCESAR MÚLTIPLES ARCHIVOS DESDE LA GALERÍA
     document.getElementById('inputGaleria').addEventListener('change', e => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
@@ -868,7 +624,7 @@
             
             agregarACola(archivo, tipo, extension);
         }
-        e.target.value = ""; // Limpiar input para permitir seleccionar la misma foto después si se borra
+        e.target.value = ""; 
     });
 
     function procesarArchivoLocal(e, tipo) {
@@ -906,11 +662,7 @@
         
         if(archivosQueue.length === 0) {
             queueList.innerHTML = "No hay archivos pendientes.";
-            
-            const tieneChecksActivos = document.getElementById('chkRCD').checked || document.getElementById('chkMedidores').checked;
-            if(!tieneChecksActivos) {
-                document.getElementById('btnEnviarReporte').style.display = 'none';
-            }
+            document.getElementById('btnEnviarReporte').style.display = 'none';
             return;
         }
 
@@ -925,10 +677,6 @@
             queueList.appendChild(div);
         });
     }
-
-    // Listener para mostrar el botón de enviar si se activa un checkbox sin archivos adjuntos
-    document.getElementById('chkRCD').addEventListener('change', () => { if(archivosQueue.length === 0) actualizarUICola(); else document.getElementById('btnEnviarReporte').style.display = 'block'; });
-    document.getElementById('chkMedidores').addEventListener('change', () => { if(archivosQueue.length === 0) actualizarUICola(); else document.getElementById('btnEnviarReporte').style.display = 'block'; });
 
     function obtenerFechaFormateada() {
         const d = new Date();
@@ -947,51 +695,12 @@
         const ubicacion = document.getElementById('appUbicacion').value.trim().toUpperCase();
         const descripcion = document.getElementById('appDescripcion').value.trim();
         
-        const rcdActivo = document.getElementById('chkRCD').checked;
-        const medidoresActivo = document.getElementById('chkMedidores').checked;
-
         if(!proyectoElegido) return alert("⚠️ Seleccione un PROYECTO.");
         if(!frente) return alert("⚠️ Debe seleccionar un FRENTE.");
         if(!ubicacion) return alert("⚠️ Debe ingresar una UBICACIÓN.");
         
-        if(archivosQueue.length === 0 && !rcdActivo && !medidoresActivo) {
-            return alert("Agregue al menos un archivo o reporte un formulario especial.");
-        }
-
-        let payloadRCD = null;
-        if (rcdActivo) {
-            const rcdTipo = document.getElementById('rcdTipo').value;
-            const rcdCantidad = document.getElementById('rcdCantidad').value;
-            const rcdProcedencia = document.getElementById('rcdProcedencia').value.trim().toUpperCase();
-            const rcdAprovechamiento = document.getElementById('rcdAprovechamiento').value.trim().toUpperCase();
-
-            if(!rcdTipo || !rcdCantidad || !rcdProcedencia || !rcdAprovechamiento) {
-                return alert("⚠️ Por favor, complete todos los campos del formulario de Aprovechamiento RCD.");
-            }
-
-            payloadRCD = {
-                tipoResiduo: rcdTipo,
-                cantidad: rcdCantidad,
-                procedencia: rcdProcedencia,
-                aprovechamiento: rcdAprovechamiento
-            };
-        }
-
-        let payloadMedidores = null;
-        if (medidoresActivo) {
-            const medAgua = document.getElementById('medAgua').value;
-            const medActiva = document.getElementById('medActiva').value;
-            const medReactiva = document.getElementById('medReactiva').value;
-
-            if(!medAgua && !medActiva && !medReactiva) {
-                 return alert("⚠️ Por favor, ingrese al menos una lectura en el formulario de Medidores.");
-            }
-
-            payloadMedidores = {
-                agua: medAgua,
-                activa: medActiva,
-                reactiva: medReactiva
-            };
+        if(archivosQueue.length === 0) {
+            return alert("Agregue al menos un archivo.");
         }
 
         const infoProy = dbProyectos[proyectoElegido];
@@ -1035,8 +744,6 @@
             actualizarUI({ progreso: 90, mensaje: "Registrando trazabilidad..." });
             
             let resumenText = `Se cargaron: ${contadoresTipo['Foto']} Fotos, ${contadoresTipo['Video']} Videos, ${contadoresTipo['Audio']} Audios.`;
-            if (rcdActivo) resumenText += ` | + RCD reportado.`;
-            if (medidoresActivo) resumenText += ` | + Medidores reportados.`;
             
             try {
                 const payloadTrazabilidad = {
@@ -1048,9 +755,7 @@
                     ubicacion: ubicacion,
                     modulo: modulo,
                     resumen: resumenText,
-                    descripcion: descripcion,
-                    datosRCD: payloadRCD,
-                    datosMedidores: payloadMedidores
+                    descripcion: descripcion
                 };
                 
                 const rTraz = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify(payloadTrazabilidad) });
@@ -1064,22 +769,6 @@
             wsText += `*Registra:* ${usuarioActual.nombre}\n`;
             wsText += `*Proyecto:* ${proyectoElegido}\n`;
             wsText += `*Ubicacion:* ${frente} - ${ubicacion}\n\n`;
-            
-            if (rcdActivo && payloadRCD) {
-                wsText += `*[♻️ APROVECHAMIENTO RCD]*\n`;
-                wsText += `- *Tipo:* ${payloadRCD.tipoResiduo}\n`;
-                wsText += `- *Cantidad:* ${payloadRCD.cantidad} ${(payloadRCD.tipoResiduo === 'TIERRA' || payloadRCD.tipoResiduo === 'ESCOMBROS') ? 'M3' : 'KG'}\n`;
-                wsText += `- *Procedencia:* ${payloadRCD.procedencia}\n`;
-                wsText += `- *Uso:* ${payloadRCD.aprovechamiento}\n\n`;
-            }
-
-            if (medidoresActivo && payloadMedidores) {
-                wsText += `*[⚡ LECTURA DE MEDIDORES]*\n`;
-                if(payloadMedidores.agua) wsText += `- *Agua:* ${payloadMedidores.agua} M3\n`;
-                if(payloadMedidores.activa) wsText += `- *Energía Activa:* ${payloadMedidores.activa}\n`;
-                if(payloadMedidores.reactiva) wsText += `- *Energía Reactiva:* ${payloadMedidores.reactiva}\n`;
-                wsText += `\n`;
-            }
 
             if (descripcion !== "") {
                 wsText += `*Descripcion:*\n_${descripcion}_\n\n`;
@@ -1104,11 +793,6 @@
 
             document.getElementById('appUbicacion').value = '';
             document.getElementById('appDescripcion').value = '';
-            
-            document.getElementById('chkRCD').checked = false;
-            document.getElementById('chkMedidores').checked = false;
-            toggleFormulario('formRCD', false);
-            toggleFormulario('formMedidores', false);
             
             actualizarUICola();
             
