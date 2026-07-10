@@ -312,11 +312,9 @@
         }
         if (nombre.includes("FDS") || nombre.includes("FORESTA")) {
             if (esVigilancia) return "https://web.telegram.org/k/#-4394411045";
-            if (mod === "SST") return "https://web.telegram.org/k/#-4281819895"; // <- Enlace SST actualizado
-            return "https://web.telegram.org/k/#-3926178295"; // <- Enlace ACTIVIDADES actualizado
+            if (mod === "SST") return "https://web.telegram.org/k/#-4387709086";
+            return "https://web.telegram.org/k/#-4405851185";
         }
-
-¡Con eso todo tu sistema quedará perfectamente sincronizado de nuevo! Haz una nueva implementación en Apps Script y avísame si todo te corre bien.
         return "https://web.telegram.org/k/";
     }
 
@@ -747,9 +745,7 @@
         const infoProy = dbProyectos[proyectoElegido];
         const sigla = infoProy ? infoProy.sigla : "S-S";
         const fecha = obtenerFechaFormateada();
-        
-        // CORRECCIÓN: Forzamos la limpieza del texto del módulo para que el backend lo reciba intacto
-        const modulo = (usuarioActual.modulo || "OBRA").trim().toUpperCase();
+        const modulo = usuarioActual.modulo || "OBRA";
 
         mostrarLoader("Procesando Reporte...");
         let errores = 0;
