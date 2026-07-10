@@ -60,8 +60,7 @@
     .btn-galeria:hover { background: #0ea5e9; color: white; }
     .btn-error { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 4px 15px rgba(255, 75, 43, 0.3); }
     .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); }
-    .btn-info { background: linear-gradient(135deg, #0575e6, #021b79); box-shadow: 0 4px 15px rgba(5, 117, 230, 0.3); }
-    .btn-whatsapp { background: linear-gradient(135deg, #25D366, #128C7E); box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3); }
+    .btn-telegram { background: linear-gradient(135deg, #0088cc, #005580); box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3); }
     
     .btn-audio-grabando { background: linear-gradient(135deg, #ff416c, #ff4b2b); animation: pulseRecord 1.5s infinite; }
     @keyframes pulseRecord { 0% { box-shadow: 0 0 0 0 rgba(255, 65, 108, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(255, 65, 108, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 65, 108, 0); } }
@@ -222,7 +221,6 @@
       <textarea id="appDescripcion" rows="3" placeholder="Detalles de la labor, novedades, observaciones..."></textarea>
     </div>
 
-    <!-- SECCIÓN MULTIMEDIA ACTUALIZADA -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
         <input type="file" id="inputFoto" accept="image/*" capture="environment">
         <button class="btn-action btn-foto" onclick="document.getElementById('inputFoto').click()" style="margin-top: 0;">📸 TOMAR FOTO</button>
@@ -231,7 +229,6 @@
         <button class="btn-action btn-video" onclick="document.getElementById('inputVideo').click()" style="margin-top: 0;">🎥 GRABAR VIDEO</button>
     </div>
     
-    <!-- BOTÓN: ADJUNTAR DESDE LA GALERÍA -->
     <input type="file" id="inputGaleria" accept="image/*,video/*" multiple>
     <button class="btn-action btn-galeria" onclick="document.getElementById('inputGaleria').click()" style="margin-top: 0; margin-bottom: 10px;">📁 ADJUNTAR DE GALERÍA</button>
 
@@ -252,7 +249,7 @@
   <div class="footer">Desarrollado por ⚡ Obras Manizales ⚡</div>
 
   <script>
-    const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbxJW36iyRL1szzULJrj7iS4RSLaEr65gWnKSetnzwRkAH8vB-m-BC4cTzmtfQ763L8/exec'; 
+    const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbxpQxEr3ZXbuv4zmYbhoy7EFchSp2UG0MQHA4Rv-p8rEQWsYt6nQa6VhUc3o5zPOaGw/exec'; 
     
     let dbUsuarios = [];
     let dbProyectos = {};
@@ -263,7 +260,6 @@
     let ultimaVista = 'vistaLogin';
     let cedulaParaReasignar = "";
 
-    /* === LÓGICA DE INDEXEDDB PARA ARCHIVOS PESADOS === */
     let dbArchivos;
     function initDB() {
         return new Promise((resolve) => {
@@ -292,11 +288,67 @@
         const tx = dbArchivos.transaction('archivos', 'readwrite');
         tx.objectStore('archivos').delete('queue');
     }
-    /* ================================================ */
+
+    function getTelegramGroupUrl(proyectoNombre, modulo, frente) {
+        var nombre = String(proyectoNombre).toUpperCase();
+        var mod = String(modulo).toUpperCase();
+        var fren = String(frente).toUpperCase();
+        var esVigilancia = fren.includes("VIGILANCIA");
+
+        // SI ES PERSONAL DISPERSO, ABRE EL TELEGRAM GENERAL PARA EVITAR CONFLICTOS
+        if (nombre.includes("PERSONAL DISPERSO") || nombre.includes("TODAS LAS OBRAS")) {
+            return "https://web.telegram.org/k/";
+        }
+
+        if (nombre.includes("MALC") || nombre.includes("ALCAZARES") || nombre.includes("ALCÁZARES")) {
+            if (esVigilancia) return "https://web.telegram.org/k/#-4312716019";
+            if (mod === "SST") return "https://web.telegram.org/k/#-4365952367";
+            return "https://web.telegram.org/k/#-4359038522";
+        }
+        if (nombre.includes("CF") || nombre.includes("CIUDAD FLORAL")) {
+            if (esVigilancia) return "https://web.telegram.org/k/#-4467458746";
+            if (mod === "SST") return "https://web.telegram.org/k/#-4433927187";
+            return "https://web.telegram.org/k/#-4343222591";
+        }
+        if (nombre.includes("FDS") || nombre.includes("FORESTA")) {
+            if (esVigilancia) return "https://web.telegram.org/k/#-4394411045";
+            if (mod === "SST") return "https://web.telegram.org/k/#-4281819895"; // <- Enlace SST actualizado
+            return "https://web.telegram.org/k/#-3926178295"; // <- Enlace ACTIVIDADES actualizado
+        }
+
+¡Con eso todo tu sistema quedará perfectamente sincronizado de nuevo! Haz una nueva implementación en Apps Script y avísame si todo te corre bien.
+        return "https://web.telegram.org/k/";
+    }
+
+    // --- NUEVA FUNCIÓN PARA ABRIR TELEGRAM SEGÚN EL DISPOSITIVO ---
+    function abrirTelegram(url) {
+        var userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        var isAndroid = /android/i.test(userAgent);
+        var isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+
+        if (isAndroid) {
+            // Android: Usamos el esquema Intent de Chrome. Si tiene Telegram lo abre, sino va a la PlayStore.
+            var intentUrl = url.replace("https://", "intent://") + "#Intent;package=org.telegram.messenger;scheme=https;end;";
+            window.location.href = intentUrl;
+        } else if (isIOS) {
+            // iOS: Intentamos abrir el esquema genérico nativo de telegram
+            var start = Date.now();
+            setTimeout(function() {
+                // Si en 1 segundo no ha cambiado de app, redirige a la App Store
+                if (Date.now() - start < 1500) {
+                    window.location.href = "https://apps.apple.com/app/telegram-messenger/id686449807";
+                }
+            }, 1000);
+            window.location.href = "tg://";
+        } else {
+            // PC u otros
+            window.open(url, '_blank');
+        }
+    }
 
     window.addEventListener('DOMContentLoaded', async () => {
         mostrarLoader("Iniciando Sistema");
-        await initDB(); // INICIALIZAR BASE DE DATOS DE ALTA CAPACIDAD ANTES DE NADA
+        await initDB(); 
         try {
             const response = await fetch(URL_APPS_SCRIPT, {
                 method: 'POST',
@@ -324,7 +376,6 @@
                 clearInterval(simuladorEnMarcha);
                 document.getElementById("vistaLoader").classList.remove("is-processing");
                 
-                // === INICIO DE LÓGICA DE CACHÉ (AUTO-LOGIN Y DRAFT) ===
                 const cachedUser = localStorage.getItem('usuarioActual');
                 if(cachedUser) {
                     usuarioActual = JSON.parse(cachedUser);
@@ -332,8 +383,6 @@
                 } else {
                     cambiarVista('vistaLogin');
                 }
-                // === FIN LÓGICA CACHÉ ===
-
             } else {
                 errorLoader("No se pudo cargar la base de datos.");
             }
@@ -341,7 +390,6 @@
             errorLoader("Fallo de conexión al servidor.");
         }
 
-        // AUTO-GUARDADO DE CACHÉ AL ESCRIBIR
         document.querySelectorAll('#vistaApp input, #vistaApp select, #vistaApp textarea').forEach(el => {
             if(el.type !== 'file') {
                 el.addEventListener('change', guardarDraft);
@@ -350,7 +398,6 @@
         });
     });
 
-    /* === FUNCIONES DE PERSISTENCIA (TEXTOS Y ARCHIVOS) === */
     function guardarDraft() {
         const draft = {
             proyecto: document.getElementById('appProyecto').value,
@@ -362,7 +409,6 @@
     }
 
     function restaurarSesionYDraft() {
-        // Restaurar Sesión UI
         document.getElementById('infoUsuarioNombre').innerText = usuarioActual.nombre;
         document.getElementById('infoUsuarioCedula').innerText = `CC: ${usuarioActual.cedula}`;
         document.getElementById('infoUsuarioCorreo').innerText = usuarioActual.correo;
@@ -385,7 +431,6 @@
             badge.style.background = 'linear-gradient(135deg, #0575e6, #021b79)';
         }
 
-        // Restaurar Draft (Texto y Opciones)
         const draftStr = localStorage.getItem('reporteDraft');
         if (draftStr) {
             try {
@@ -404,7 +449,6 @@
             actualizarFrentes();
         }
 
-        // Restaurar Archivos en Cola usando IndexedDB (Alta Capacidad)
         cargarArchivosDeIndexedDB().then(archivosGuardados => {
             if(archivosGuardados && archivosGuardados.length > 0) {
                 archivosQueue = archivosGuardados;
@@ -418,7 +462,6 @@
     function guardarArchivosEnCache() {
         guardarArchivosEnIndexedDB(archivosQueue);
     }
-    /* === FIN FUNCIONES DE PERSISTENCIA === */
 
     async function iniciarSesion() {
       const nombre = document.getElementById('loginNombre').value.trim().toUpperCase();
@@ -461,7 +504,7 @@
               badge.style.background = 'linear-gradient(135deg, #0575e6, #021b79)';
           }
 
-          localStorage.setItem('usuarioActual', JSON.stringify(res)); // CACHÉ: GUARDAR USUARIO
+          localStorage.setItem('usuarioActual', JSON.stringify(res)); 
           document.getElementById('loginPassword').value = ''; 
           exitoLoader(`Bienvenido al sistema,<br><b style="color:white;">${res.nombre}</b>`, 'vistaApp');
         } else errorLoader(res.mensaje);
@@ -551,10 +594,9 @@
         usuarioActual = {};
         archivosQueue = [];
         
-        // CACHÉ: LIMPIAR AL CERRAR SESIÓN
         localStorage.removeItem('usuarioActual');
         localStorage.removeItem('reporteDraft');
-        borrarArchivosDeIndexedDB(); // LIMPIAR BD DE ARCHIVOS
+        borrarArchivosDeIndexedDB(); 
 
         actualizarUICola();
         document.getElementById('appUbicacion').value = '';
@@ -606,7 +648,6 @@
     document.getElementById('inputFoto').addEventListener('change', e => procesarArchivoLocal(e, 'Foto'));
     document.getElementById('inputVideo').addEventListener('change', e => procesarArchivoLocal(e, 'Video'));
 
-    // EVENTO PARA PROCESAR MÚLTIPLES ARCHIVOS DESDE LA GALERÍA
     document.getElementById('inputGaleria').addEventListener('change', e => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
@@ -644,14 +685,14 @@
       reader.readAsDataURL(blob);
       reader.onloadend = function() {
           archivosQueue.push({ base64: reader.result, tipo: tipo, extension: extension });
-          guardarArchivosEnCache(); // CACHÉ: GUARDAR EN INDEXEDDB
+          guardarArchivosEnCache(); 
           actualizarUICola();
       }
     }
 
     function removerDeCola(index) {
         archivosQueue.splice(index, 1);
-        guardarArchivosEnCache(); // CACHÉ: ACTUALIZAR EN INDEXEDDB
+        guardarArchivosEnCache(); 
         actualizarUICola();
     }
 
@@ -706,32 +747,60 @@
         const infoProy = dbProyectos[proyectoElegido];
         const sigla = infoProy ? infoProy.sigla : "S-S";
         const fecha = obtenerFechaFormateada();
-        const modulo = usuarioActual.modulo || "OBRA";
+        
+        // CORRECCIÓN: Forzamos la limpieza del texto del módulo para que el backend lo reciba intacto
+        const modulo = (usuarioActual.modulo || "OBRA").trim().toUpperCase();
 
         mostrarLoader("Procesando Reporte...");
         let errores = 0;
         let ultimoErrorTxt = ""; 
         let contadoresTipo = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
-        let linksDeArchivos = []; 
+        
+        archivosQueue.forEach(item => {
+            if(contadoresTipo[item.tipo] !== undefined) contadoresTipo[item.tipo]++;
+        });
+        let resumenText = `Se cargaron: ${contadoresTipo['Foto']} Fotos, ${contadoresTipo['Video']} Videos, ${contadoresTipo['Audio']} Audios.`;
 
+        try {
+            const rTg = await fetch(URL_APPS_SCRIPT, { 
+                method: 'POST', 
+                body: JSON.stringify({ 
+                    action: 'telegram_header', 
+                    proyecto: proyectoElegido,
+                    usuario: usuarioActual.nombre,
+                    frente: frente,
+                    ubicacion: ubicacion,
+                    modulo: modulo,
+                    descripcion: descripcion,
+                    resumen: resumenText
+                }) 
+            });
+            const resTg = await rTg.json();
+            if (resTg.estado === "error") {
+                errores++;
+                ultimoErrorTxt = resTg.mensaje;
+                errorLoader(`Fallo en la subida.<br><span style="font-size:11px;color:#ffb3b3;margin-top:10px;display:block;">Detalle: ${ultimoErrorTxt}</span>`);
+                return;
+            }
+        } catch(e) {}
+
+        let contadoresSubida = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
         if (archivosQueue.length > 0) {
             for(let i=0; i<archivosQueue.length; i++) {
                 let item = archivosQueue[i];
-                let msg = `Subiendo archivo ${i+1} de ${archivosQueue.length}...`;
+                let msg = `Subiendo y enviando archivo ${i+1} de ${archivosQueue.length}...`;
                 actualizarUI({ progreso: Math.floor(((i)/archivosQueue.length)*80), mensaje: msg });
 
-                contadoresTipo[item.tipo]++;
-                let nombreFinal = `${sigla}-${frente}-${ubicacion}-${fecha}_${modulo}_${item.tipo.toUpperCase()}${contadoresTipo[item.tipo]}.${item.extension}`;
+                contadoresSubida[item.tipo]++;
+                let nombreFinal = `${sigla}-${frente}-${ubicacion}-${fecha}_${modulo}_${item.tipo.toUpperCase()}${contadoresSubida[item.tipo]}.${item.extension}`;
 
                 try {
-                    const r = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ action: 'upload', base64: item.base64, nombre: nombreFinal }) });
+                    const r = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ action: 'upload', base64: item.base64, nombre: nombreFinal, proyecto: proyectoElegido, modulo: modulo, frente: frente }) });
                     const res = await r.json();
                     
                     if(res.estado !== 'exito') {
                         errores++;
                         ultimoErrorTxt = res.mensaje || "Error desconocido devuelto por el servidor.";
-                    } else {
-                        linksDeArchivos.push({ tipo: item.tipo, url: res.url });
                     }
                 } catch (e) { 
                     errores++; 
@@ -742,8 +811,6 @@
 
         if(errores === 0) {
             actualizarUI({ progreso: 90, mensaje: "Registrando trazabilidad..." });
-            
-            let resumenText = `Se cargaron: ${contadoresTipo['Foto']} Fotos, ${contadoresTipo['Video']} Videos, ${contadoresTipo['Audio']} Audios.`;
             
             try {
                 const payloadTrazabilidad = {
@@ -765,38 +832,20 @@
                 }
             } catch (e) { console.log("Fallo trazabilidad, pero se avanza"); }
 
-            let wsText = `*--- REPORTE DE OBRA - ${modulo} ---*\n`;
-            wsText += `*Registra:* ${usuarioActual.nombre}\n`;
-            wsText += `*Proyecto:* ${proyectoElegido}\n`;
-            wsText += `*Ubicacion:* ${frente} - ${ubicacion}\n\n`;
+            let tgUrl = getTelegramGroupUrl(proyectoElegido, modulo, frente);
+            // REEMPLAZAMOS EL <A HREF=...> POR EL LLAMADO A LA FUNCIÓN ABRIR TELEGRAM 
+            let btnTelegramHTML = `<br><br><span style="color:#a0aec0; font-size:12px;">✅ Fotos y textos enviados a Telegram.</span><br><button class="btn-action btn-telegram" style="margin-top:10px;" onclick="abrirTelegram('${tgUrl}')">✈️ ABRIR GRUPO DE TELEGRAM</button>`;
 
-            if (descripcion !== "") {
-                wsText += `*Descripcion:*\n_${descripcion}_\n\n`;
-            }
-            
-            if (linksDeArchivos.length > 0) {
-                wsText += `*ARCHIVOS ADJUNTOS (${linksDeArchivos.length}):*\n`;
-                linksDeArchivos.forEach((file, index) => {
-                    wsText += `- Archivo ${file.tipo} ${index + 1}: ${file.url}\n`;
-                });
-            } else {
-                wsText += `_Sin archivos multimedia adjuntos._\n`;
-            }
-
-            let linkWa = `https://wa.me/?text=${encodeURIComponent(wsText)}`;
-            let btnWhatsAppHTML = `<br><br><a href="${linkWa}" target="_blank" style="text-decoration:none;"><button class="btn-action btn-whatsapp" style="margin-top:0;">💬 COMPARTIR EN WHATSAPP</button></a>`;
-
-            // Limpieza del entorno post-envío y borrado de caché
             archivosQueue = [];
             localStorage.removeItem('reporteDraft');
-            borrarArchivosDeIndexedDB(); // LIMPIAR BD DE ARCHIVOS
+            borrarArchivosDeIndexedDB(); 
 
             document.getElementById('appUbicacion').value = '';
             document.getElementById('appDescripcion').value = '';
             
             actualizarUICola();
             
-            exitoLoader(`Reporte completado exitosamente.${btnWhatsAppHTML}`, 'vistaApp');
+            exitoLoader(`Reporte completado exitosamente.${btnTelegramHTML}`, 'vistaApp');
         } else {
             errorLoader(`Fallo en la subida de ${errores} archivo(s).<br><span style="font-size:11px;color:#ffb3b3;margin-top:10px;display:block;">Detalle: ${ultimoErrorTxt}</span>`);
         }
