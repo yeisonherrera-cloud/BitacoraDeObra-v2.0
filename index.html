@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- === CONTROL DE VERSIÓN PARA AUTO-ACTUALIZACIÓN === -->
+  <meta name="app-version" content="1.0.0">
   <title>Plataforma de Registro y Captura</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
@@ -90,6 +92,7 @@
     .queue-item.foto { border-left-color: #34d399; }
     .queue-item.video { border-left-color: #a78bfa; }
     .queue-item.audio { border-left-color: #ff4b2b; }
+    .queue-item.failed-item { border-left-color: #ff4b2b; background: rgba(255, 75, 43, 0.15); border: 1px solid rgba(255, 75, 43, 0.3); border-left: 3px solid #ff4b2b; }
     .btn-remove { background: none; border: none; color: #ff4b2b; cursor: pointer; font-size: 18px; font-weight: bold; }
     
     .footer { position: relative; margin-top: 25px; width: 100%; text-align: center; font-size: 11px; color: rgba(255,255,255,0.3); letter-spacing: 4px; text-transform: uppercase; font-weight: 700; z-index: 10; padding-bottom: 20px;}
@@ -109,9 +112,24 @@
         z-index: 100; 
         display: none;
     }
+
+    /* === NUEVO: ESTILO PARA EL BANNER DE ACTUALIZACIÓN === */
+    #updateBanner {
+        position: fixed; top: 0; left: 0; width: 100%; 
+        background: linear-gradient(135deg, #f59e0b, #d97706); 
+        color: white; text-align: center; padding: 14px; 
+        font-size: 13px; font-weight: 700; z-index: 99999; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; 
+        cursor: pointer; text-transform: uppercase; 
+        font-family: 'Inter', sans-serif;
+    }
+    #updateBanner:hover { background: linear-gradient(135deg, #d97706, #b45309); }
   </style>
 </head>
 <body>
+  <!-- === NUEVO: BANNER DE ACTUALIZACIÓN VISUAL === -->
+  <div id="updateBanner" onclick="window.location.reload(true)">🚀 Nueva versión disponible. Toca aquí para actualizar 🚀</div>
+
   <div class="cyber-grid"></div>
   <div class="ambient-light"></div>
 
@@ -295,7 +313,6 @@
         var fren = String(frente).toUpperCase();
         var esVigilancia = fren.includes("VIGILANCIA");
 
-        // SI ES PERSONAL DISPERSO, ABRE EL TELEGRAM GENERAL PARA EVITAR CONFLICTOS
         if (nombre.includes("PERSONAL DISPERSO") || nombre.includes("TODAS LAS OBRAS")) {
             return "https://web.telegram.org/k/";
         }
@@ -318,28 +335,23 @@
         return "https://web.telegram.org/k/";
     }
 
-    // --- NUEVA FUNCIÓN PARA ABRIR TELEGRAM SEGÚN EL DISPOSITIVO ---
     function abrirTelegram(url) {
         var userAgent = navigator.userAgent || navigator.vendor || window.opera;
         var isAndroid = /android/i.test(userAgent);
         var isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
 
         if (isAndroid) {
-            // Android: Usamos el esquema Intent de Chrome. Si tiene Telegram lo abre, sino va a la PlayStore.
             var intentUrl = url.replace("https://", "intent://") + "#Intent;package=org.telegram.messenger;scheme=https;end;";
             window.location.href = intentUrl;
         } else if (isIOS) {
-            // iOS: Intentamos abrir el esquema genérico nativo de telegram
             var start = Date.now();
             setTimeout(function() {
-                // Si en 1 segundo no ha cambiado de app, redirige a la App Store
                 if (Date.now() - start < 1500) {
                     window.location.href = "https://apps.apple.com/app/telegram-messenger/id686449807";
                 }
             }, 1000);
             window.location.href = "tg://";
         } else {
-            // PC u otros
             window.open(url, '_blank');
         }
     }
@@ -607,22 +619,43 @@
         cambiarVista('vistaLogin');
     }
 
-    let mediaRecorder; let audioChunks = []; let isRecording = false; let intervaloCronometro; let segundos = 0;
+    let audioContext; 
+    let mediaStreamSource; 
+    let processor; 
+    let gainNode; 
+    let pcmData = []; 
+    let audioStream; 
+    let isRecording = false; 
+    let intervaloCronometro; 
+    let segundos = 0;
     const btnGrabarAudio = document.getElementById('btnGrabarAudio'); 
     const cronometro = document.getElementById('cronometro'); 
 
+    /* === NUEVA SOLUCIÓN: FORZAR FORMATO MP3 UNIVERSAL PARA TODOS LOS DISPOSITIVOS === */
     btnGrabarAudio.addEventListener('click', async () => {
       if (!isRecording) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          mediaRecorder = new MediaRecorder(stream);
-          audioChunks = [];
-          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-          mediaRecorder.onstop = () => {
-              const audioBlob = new Blob(audioChunks, { type: 'audio/mp4' });
-              agregarACola(audioBlob, 'Audio', 'mp4');
+          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          mediaStreamSource = audioContext.createMediaStreamSource(audioStream);
+
+          // Configuramos un procesador para interceptar el audio puro y crudo (PCM)
+          processor = audioContext.createScriptProcessor(4096, 1, 1);
+          gainNode = audioContext.createGain();
+          gainNode.gain.value = 0; // Muteamos la salida para que el usuario no escuche eco
+
+          pcmData = [];
+
+          processor.onaudioprocess = (e) => {
+              if (!isRecording) return;
+              pcmData.push(new Float32Array(e.inputBuffer.getChannelData(0)));
           };
-          mediaRecorder.start();
+
+          // Conectamos la ruta de audio
+          mediaStreamSource.connect(processor);
+          processor.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
           isRecording = true;
           
           btnGrabarAudio.classList.add('btn-audio-grabando');
@@ -634,14 +667,71 @@
           }, 1000);
         } catch (error) { alert("Permiso de micrófono denegado."); }
       } else {
-        mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
         isRecording = false;
         btnGrabarAudio.classList.remove('btn-audio-grabando');
         btnGrabarAudio.innerHTML = "🎤 GRABAR AUDIO";
         clearInterval(intervaloCronometro); cronometro.style.display = 'none';
+
+        // Detenemos los procesos del micrófono
+        processor.disconnect();
+        gainNode.disconnect();
+        mediaStreamSource.disconnect();
+        audioStream.getTracks().forEach(track => track.stop());
+
+        // Mostramos el loader porque la conversión MP3 toma un instante
+        mostrarLoader("Convirtiendo a MP3...");
+
+        // Usamos setTimeout para no bloquear la animación visual del loader
+        setTimeout(() => {
+            try {
+                const sampleRate = audioContext.sampleRate;
+                const mp3Blob = encodeToMP3(pcmData, sampleRate);
+                agregarACola(mp3Blob, 'Audio', 'mp3'); // Ahora siempre se guardará como MP3 estándar
+            } catch(err) {
+                console.error(err);
+                alert("Error al convertir el audio a MP3.");
+            } finally {
+                document.getElementById("vistaLoader").classList.remove("is-processing");
+                cambiarVista('vistaApp');
+            }
+        }, 100);
       }
     });
+
+    // Función que toma los datos crudos y los exporta a MP3
+    function encodeToMP3(audioData, sampleRate) {
+        let length = 0;
+        for (let i = 0; i < audioData.length; i++) length += audioData[i].length;
+        let buffer = new Float32Array(length);
+        let offset = 0;
+        for (let i = 0; i < audioData.length; i++) {
+            buffer.set(audioData[i], offset);
+            offset += audioData[i].length;
+        }
+
+        // Convertir el audio crudo de Float32 a Int16 (lo que necesita el encoder)
+        let buffer16 = new Int16Array(length);
+        for (let i = 0; i < length; i++) {
+            let s = Math.max(-1, Math.min(1, buffer[i]));
+            buffer16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+
+        // Inicializamos el MP3 Encoder (1 canal/Mono, Frecuencia base, 128kbps)
+        const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128); 
+        const mp3Data = [];
+        const sampleBlockSize = 1152;
+
+        for (let i = 0; i < buffer16.length; i += sampleBlockSize) {
+            const sampleChunk = buffer16.subarray(i, i + sampleBlockSize);
+            const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+            if (mp3buf.length > 0) mp3Data.push(mp3buf);
+        }
+
+        const mp3bufFinal = mp3encoder.flush();
+        if (mp3bufFinal.length > 0) mp3Data.push(mp3bufFinal);
+
+        return new Blob(mp3Data, { type: 'audio/mp3' });
+    }
 
     document.getElementById('inputFoto').addEventListener('change', e => procesarArchivoLocal(e, 'Foto'));
     document.getElementById('inputVideo').addEventListener('change', e => procesarArchivoLocal(e, 'Video'));
@@ -710,9 +800,14 @@
         
         archivosQueue.forEach((item, index) => {
             let div = document.createElement('div');
-            div.className = `queue-item ${item.tipo.toLowerCase()}`;
+            let baseClass = `queue-item ${item.tipo.toLowerCase()}`;
+            if (item.hasFailed) baseClass += ' failed-item';
+            div.className = baseClass;
+            
             let icon = item.tipo === 'Foto' ? '📸' : (item.tipo === 'Video' ? '🎥' : '🎤');
-            div.innerHTML = `<span>${icon} Archivo de ${item.tipo} ${index + 1}</span> <button class="btn-remove" onclick="removerDeCola(${index})">×</button>`;
+            let failBadge = item.hasFailed ? '<br><span style="color:#ff8787; font-size:10px; margin-top:4px; display:inline-block; background:rgba(255,75,43,0.2); padding:2px 6px; border-radius:4px;">⚠️ Falló el envío, reintente</span>' : '';
+
+            div.innerHTML = `<div style="text-align: left;"><span>${icon} Archivo de ${item.tipo} ${index + 1}</span>${failBadge}</div> <button class="btn-remove" onclick="removerDeCola(${index})">×</button>`;
             queueList.appendChild(div);
         });
     }
@@ -723,6 +818,7 @@
         return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()}`;
     }
 
+    /* === SOLUCIÓN FIX: GESTIÓN DE ARCHIVOS Y DUPLICADOS EN LA COLA === */
     async function enviarReporteEnCola() {
         if (isRecording) {
             alert("⚠️ Hay un audio grabándose. Por favor detén la grabación antes de enviar el reporte.");
@@ -748,15 +844,19 @@
         const modulo = usuarioActual.modulo || "OBRA";
 
         mostrarLoader("Procesando Reporte...");
+        
+        let archivosAEnviar = [...archivosQueue];
+        let archivosRestantesEnCola = []; // Almacenará SOLO los que fallen
         let errores = 0;
         let ultimoErrorTxt = ""; 
         let contadoresTipo = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
         
-        archivosQueue.forEach(item => {
+        archivosAEnviar.forEach(item => {
             if(contadoresTipo[item.tipo] !== undefined) contadoresTipo[item.tipo]++;
         });
         let resumenText = `Se cargaron: ${contadoresTipo['Foto']} Fotos, ${contadoresTipo['Video']} Videos, ${contadoresTipo['Audio']} Audios.`;
 
+        // Se envía la cabecera de Telegram primero
         try {
             const rTg = await fetch(URL_APPS_SCRIPT, { 
                 method: 'POST', 
@@ -773,19 +873,19 @@
             });
             const resTg = await rTg.json();
             if (resTg.estado === "error") {
-                errores++;
-                ultimoErrorTxt = resTg.mensaje;
-                errorLoader(`Fallo en la subida.<br><span style="font-size:11px;color:#ffb3b3;margin-top:10px;display:block;">Detalle: ${ultimoErrorTxt}</span>`);
+                errorLoader(`Fallo en la subida.<br><span style="font-size:11px;color:#ffb3b3;margin-top:10px;display:block;">Detalle: ${resTg.mensaje}</span>`);
                 return;
             }
         } catch(e) {}
 
         let contadoresSubida = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
-        if (archivosQueue.length > 0) {
-            for(let i=0; i<archivosQueue.length; i++) {
-                let item = archivosQueue[i];
-                let msg = `Subiendo y enviando archivo ${i+1} de ${archivosQueue.length}...`;
-                actualizarUI({ progreso: Math.floor(((i)/archivosQueue.length)*80), mensaje: msg });
+        
+        // Empieza el Loop de subida de archivos
+        if (archivosAEnviar.length > 0) {
+            for(let i = 0; i < archivosAEnviar.length; i++) {
+                let item = archivosAEnviar[i];
+                let msg = `Subiendo y enviando archivo ${i+1} de ${archivosAEnviar.length}...`;
+                actualizarUI({ progreso: Math.floor(((i)/archivosAEnviar.length)*80), mensaje: msg });
 
                 contadoresSubida[item.tipo]++;
                 let nombreFinal = `${sigla}-${frente}-${ubicacion}-${fecha}_${modulo}_${item.tipo.toUpperCase()}${contadoresSubida[item.tipo]}.${item.extension}`;
@@ -797,17 +897,29 @@
                     if(res.estado !== 'exito') {
                         errores++;
                         ultimoErrorTxt = res.mensaje || "Error desconocido devuelto por el servidor.";
+                        item.hasFailed = true;
+                        archivosRestantesEnCola.push(item); // Se guarda para reintentar más tarde
                     }
+                    // Si es exitoso, NO se agrega a archivosRestantesEnCola, por lo tanto se limpia.
                 } catch (e) { 
                     errores++; 
                     ultimoErrorTxt = e.message || e.toString();
+                    item.hasFailed = true;
+                    archivosRestantesEnCola.push(item); // Error de red, se queda en cola
                 }
             }
         }
 
-        if(errores === 0) {
+        // Actualizamos la cola INMEDIATAMENTE para que solo contenga los fallidos (o que quede vacía)
+        archivosQueue = archivosRestantesEnCola;
+        guardarArchivosEnCache();
+        actualizarUICola();
+
+        // Evaluar cuántos se subieron exitosamente en este intento
+        let subidosExito = archivosAEnviar.length - errores;
+
+        if (subidosExito > 0) {
             actualizarUI({ progreso: 90, mensaje: "Registrando trazabilidad..." });
-            
             try {
                 const payloadTrazabilidad = {
                     action: 'trazabilidad',
@@ -817,33 +929,26 @@
                     frente: frente,
                     ubicacion: ubicacion,
                     modulo: modulo,
-                    resumen: resumenText,
+                    resumen: `(Envío Parcial/Total) ` + resumenText,
                     descripcion: descripcion
                 };
-                
                 const rTraz = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify(payloadTrazabilidad) });
-                const resTraz = await rTraz.json();
-                if(resTraz.estado !== 'exito') {
-                    console.error("Error guardando trazabilidad:", resTraz.mensaje);
-                }
             } catch (e) { console.log("Fallo trazabilidad, pero se avanza"); }
+        }
 
+        // Respuestas de UI según el resultado
+        if(errores === 0) {
             let tgUrl = getTelegramGroupUrl(proyectoElegido, modulo, frente);
-            // REEMPLAZAMOS EL <A HREF=...> POR EL LLAMADO A LA FUNCIÓN ABRIR TELEGRAM 
-            let btnTelegramHTML = `<br><br><span style="color:#a0aec0; font-size:12px;">✅ Fotos y textos enviados a Telegram.</span><br><button class="btn-action btn-telegram" style="margin-top:10px;" onclick="abrirTelegram('${tgUrl}')">✈️ ABRIR GRUPO DE TELEGRAM</button>`;
+            let btnTelegramHTML = `<br><br><span style="color:#a0aec0; font-size:12px;">✅ Archivos enviados a Telegram.</span><br><button class="btn-action btn-telegram" style="margin-top:10px;" onclick="abrirTelegram('${tgUrl}')">✈️ ABRIR GRUPO DE TELEGRAM</button>`;
 
-            archivosQueue = [];
             localStorage.removeItem('reporteDraft');
-            borrarArchivosDeIndexedDB(); 
-
             document.getElementById('appUbicacion').value = '';
             document.getElementById('appDescripcion').value = '';
             
-            actualizarUICola();
-            
             exitoLoader(`Reporte completado exitosamente.${btnTelegramHTML}`, 'vistaApp');
         } else {
-            errorLoader(`Fallo en la subida de ${errores} archivo(s).<br><span style="font-size:11px;color:#ffb3b3;margin-top:10px;display:block;">Detalle: ${ultimoErrorTxt}</span>`);
+            let extraMsg = subidosExito > 0 ? `<br><br><span style="color:#00f260;">Se subieron ${subidosExito} archivo(s) correctamente, el resto quedó pendiente.</span>` : '';
+            errorLoader(`Fallo en la subida de ${errores} archivo(s).${extraMsg}<br><span style="font-size:11px;color:#ffb3b3;margin-top:10px;display:block;">Detalle: ${ultimoErrorTxt}</span>`);
         }
     }
 
@@ -898,7 +1003,7 @@
         document.getElementById("message").style.color = "#00f260"; 
         document.getElementById("loginPassword").value = '';
         resetBtnError();
-        cambiarVista('vistaLogin'); 
+        cambiarVista('vistaApp'); // Corregido: Para que regrese al App y el usuario pueda reintentar los pendientes
     }
 
     function textScramble(e, t) {
@@ -917,6 +1022,49 @@
             textScramble(document.getElementById("message"), d.mensaje); 
         } 
     }
+
+    /* === NUEVO: SISTEMA DE AUTO-ACTUALIZACIÓN (GITHUB PAGES) === */
+    let appVersionActual = "1.0.0";
+    
+    // 1. Obtener la versión actual al abrir la app
+    window.addEventListener("DOMContentLoaded", () => {
+        const metaTag = document.querySelector('meta[name="app-version"]');
+        if (metaTag) appVersionActual = metaTag.content;
+    });
+
+    // 2. Función para ir al servidor y revisar si la versión cambió
+    async function checkForUpdates() {
+        try {
+            // Se le suma un timestamp (Date.now) para que el navegador NO use el caché y descargue el HTML real de Github
+            const url = window.location.href.split('?')[0] + '?t=' + Date.now();
+            const response = await fetch(url, { cache: 'no-store' });
+            if (!response.ok) return;
+            
+            const htmlText = await response.text();
+            
+            // Extraer la versión del HTML descargado mediante Expresión Regular
+            const match = htmlText.match(/<meta name="app-version"\s+content="([^"]+)">/);
+            if (match && match[1]) {
+                const versionRemota = match[1];
+                if (versionRemota !== appVersionActual) {
+                    // Si las versiones no coinciden, mostramos el banner superior
+                    document.getElementById('updateBanner').style.display = 'block';
+                }
+            }
+        } catch (e) {
+            // Fallo silencioso (ej: el usuario está sin internet, no pasa nada)
+        }
+    }
+
+    // 3. Comprobar actualizaciones automáticamente cada 10 minutos
+    setInterval(checkForUpdates, 10 * 60 * 1000);
+    
+    // 4. Comprobar actualizaciones CADA VEZ que el usuario regrese a la pestaña (ej: abre WhatsApp y vuelve a tu App)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            checkForUpdates();
+        }
+    });
   </script>
 </body>
 </html>
