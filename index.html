@@ -4,9 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <!-- === CONTROL DE VERSIÓN PARA AUTO-ACTUALIZACIÓN === -->
-  <meta name="app-version" content="1.0.0">
+  <meta name="app-version" content="1.0.1">
   <title>Plataforma de Registro y Captura</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
+  <!-- LIBRERÍA LAMEJS PARA UNIFICAR TODOS LOS AUDIOS A FORMATO MP3 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+
   <style>
     :root { --primary: #00f260; --secondary: #0575e6; --bg-dark: #04090b; --card-bg: rgba(10, 15, 18, 0.75); }
     body { margin: 0; padding: 20px; background: var(--bg-dark); font-family: 'Inter', sans-serif; color: white; text-align: center; overflow-y: auto; overflow-x: hidden; position: relative; scrollbar-width: none; -ms-overflow-style: none; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;}
@@ -619,43 +623,76 @@
         cambiarVista('vistaLogin');
     }
 
-    let audioContext; 
-    let mediaStreamSource; 
-    let processor; 
-    let gainNode; 
-    let pcmData = []; 
-    let audioStream; 
+    let mediaRecorder; 
+    let audioChunks = []; 
     let isRecording = false; 
     let intervaloCronometro; 
     let segundos = 0;
     const btnGrabarAudio = document.getElementById('btnGrabarAudio'); 
     const cronometro = document.getElementById('cronometro'); 
 
-    /* === NUEVA SOLUCIÓN: FORZAR FORMATO MP3 UNIVERSAL PARA TODOS LOS DISPOSITIVOS === */
+    /* === SOLUCIÓN FIX 3.0: GRABACIÓN ROBUSTA Y POST-PROCESAMIENTO MP3 === */
     btnGrabarAudio.addEventListener('click', async () => {
       if (!isRecording) {
         try {
-          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          mediaStreamSource = audioContext.createMediaStreamSource(audioStream);
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          
+          // VOLVEMOS AL GRABADOR NATIVO DEL CELULAR (Mucho más estable)
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          
+          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+          
+          mediaRecorder.onstop = async () => {
+              mostrarLoader("Convirtiendo a MP3...");
+              
+              // Pequeño timeout para no congelar la pantalla de carga visualmente
+              setTimeout(async () => {
+                  try {
+                      let mimeOriginal = mediaRecorder.mimeType || 'audio/webm';
+                      const audioBlobOriginal = new Blob(audioChunks, { type: mimeOriginal });
+                      
+                      // Si lamejs nunca cargó (por mal internet del trabajador), forzar el fallo y usar el fallback
+                      if (typeof lamejs === 'undefined') {
+                          throw new Error("La librería MP3 no cargó, guardando archivo original.");
+                      }
 
-          // Configuramos un procesador para interceptar el audio puro y crudo (PCM)
-          processor = audioContext.createScriptProcessor(4096, 1, 1);
-          gainNode = audioContext.createGain();
-          gainNode.gain.value = 0; // Muteamos la salida para que el usuario no escuche eco
-
-          pcmData = [];
-
-          processor.onaudioprocess = (e) => {
-              if (!isRecording) return;
-              pcmData.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+                      // Extraer los datos crudos del audio grabado
+                      const arrayBuffer = await audioBlobOriginal.arrayBuffer();
+                      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                      
+                      // Decodificación nativa (a prueba de fallos de tiempo real)
+                      const audioBuffer = await new Promise((resolve, reject) => {
+                          audioCtx.decodeAudioData(arrayBuffer, resolve, reject);
+                      });
+                      
+                      const pcmData = audioBuffer.getChannelData(0); // Tomar solo 1 canal (Mono)
+                      const sampleRate = audioBuffer.sampleRate;
+                      
+                      // Convertir los datos perfectos a MP3
+                      const mp3Blob = encodeToMP3FromBuffer(pcmData, sampleRate);
+                      agregarACola(mp3Blob, 'Audio', 'mp3');
+                      
+                  } catch(err) {
+                      console.warn("Fallo conversión MP3, usando fallback:", err);
+                      // === FALLBACK DE SEGURIDAD ===
+                      // Si todo falla, guardamos la grabación original para que NUNCA se pierda el reporte
+                      let extOriginal = 'webm';
+                      let mimeFallback = mediaRecorder.mimeType || 'audio/webm';
+                      if (mimeFallback.includes('mp4')) extOriginal = 'm4a';
+                      else if (mimeFallback.includes('ogg')) extOriginal = 'ogg';
+                      
+                      const originalBlob = new Blob(audioChunks, { type: mimeFallback });
+                      agregarACola(originalBlob, 'Audio', extOriginal);
+                      // Aviso silencioso en consola, el usuario verá que su audio está en la lista de espera
+                  } finally {
+                      document.getElementById("vistaLoader").classList.remove("is-processing");
+                      cambiarVista('vistaApp');
+                  }
+              }, 100);
           };
-
-          // Conectamos la ruta de audio
-          mediaStreamSource.connect(processor);
-          processor.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-
+          
+          mediaRecorder.start();
           isRecording = true;
           
           btnGrabarAudio.classList.add('btn-audio-grabando');
@@ -672,51 +709,20 @@
         btnGrabarAudio.innerHTML = "🎤 GRABAR AUDIO";
         clearInterval(intervaloCronometro); cronometro.style.display = 'none';
 
-        // Detenemos los procesos del micrófono
-        processor.disconnect();
-        gainNode.disconnect();
-        mediaStreamSource.disconnect();
-        audioStream.getTracks().forEach(track => track.stop());
-
-        // Mostramos el loader porque la conversión MP3 toma un instante
-        mostrarLoader("Convirtiendo a MP3...");
-
-        // Usamos setTimeout para no bloquear la animación visual del loader
-        setTimeout(() => {
-            try {
-                const sampleRate = audioContext.sampleRate;
-                const mp3Blob = encodeToMP3(pcmData, sampleRate);
-                agregarACola(mp3Blob, 'Audio', 'mp3'); // Ahora siempre se guardará como MP3 estándar
-            } catch(err) {
-                console.error(err);
-                alert("Error al convertir el audio a MP3.");
-            } finally {
-                document.getElementById("vistaLoader").classList.remove("is-processing");
-                cambiarVista('vistaApp');
-            }
-        }, 100);
+        // Detenemos la grabación del celular
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
       }
     });
 
-    // Función que toma los datos crudos y los exporta a MP3
-    function encodeToMP3(audioData, sampleRate) {
-        let length = 0;
-        for (let i = 0; i < audioData.length; i++) length += audioData[i].length;
-        let buffer = new Float32Array(length);
-        let offset = 0;
-        for (let i = 0; i < audioData.length; i++) {
-            buffer.set(audioData[i], offset);
-            offset += audioData[i].length;
-        }
-
-        // Convertir el audio crudo de Float32 a Int16 (lo que necesita el encoder)
-        let buffer16 = new Int16Array(length);
-        for (let i = 0; i < length; i++) {
-            let s = Math.max(-1, Math.min(1, buffer[i]));
+    // Función pura de conversión, no depende del tiempo real
+    function encodeToMP3FromBuffer(float32Array, sampleRate) {
+        let buffer16 = new Int16Array(float32Array.length);
+        for (let i = 0; i < float32Array.length; i++) {
+            let s = Math.max(-1, Math.min(1, float32Array[i]));
             buffer16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
 
-        // Inicializamos el MP3 Encoder (1 canal/Mono, Frecuencia base, 128kbps)
         const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128); 
         const mp3Data = [];
         const sampleBlockSize = 1152;
@@ -1024,7 +1030,7 @@
     }
 
     /* === NUEVO: SISTEMA DE AUTO-ACTUALIZACIÓN (GITHUB PAGES) === */
-    let appVersionActual = "1.0.0";
+    let appVersionActual = "1.0.1";
     
     // 1. Obtener la versión actual al abrir la app
     window.addEventListener("DOMContentLoaded", () => {
