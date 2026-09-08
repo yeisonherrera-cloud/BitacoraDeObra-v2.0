@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="app-version" content="1.0.5">
+  <meta name="app-version" content="1.0.6">
   <title>Plataforma de Registro y Captura</title>
   
   <!-- Fuentes: Inter para legibilidad, JetBrains Mono para toques Tech -->
@@ -1227,7 +1227,6 @@
 
         let hilosTelegram = {};
 
-        // V26: Creación del Encabezado (Omitir si se está reintentando con hilos guardados)
         if (!hilosActivos) {
             try {
                 const rTg = await fetch(URL_APPS_SCRIPT, { 
@@ -1250,30 +1249,38 @@
                 }
                 if (resTg.threads) {
                     hilosTelegram = resTg.threads;
-                    hilosActivos = resTg.threads; // Memoriza para reintentos
+                    hilosActivos = resTg.threads; 
                 }
             } catch(e) {
                 return errorLoader(`Falla de conexión con el servidor.`);
             }
         } else {
-            // Reutilizar el hilo si estamos reintentando archivos que fallaron
             hilosTelegram = hilosActivos;
         }
 
-        let contadoresSubida = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
+        // =========================================================
+        // INICIO LÓGICA DE IDEMPOTENCIA
+        // =========================================================
+        if (typeof window.contadoresLote === 'undefined') {
+            window.contadoresLote = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
+        }
+        
         let peticionesEnParalelo = [];
         let archivosProcesados = 0;
-        
-        // Genera el ID único fuera del bucle para agrupar los archivos de este envío
-        let idUnicoEnvio = Date.now().toString().slice(-5); 
         
         if (archivosAEnviar.length > 0) {
             for(let i = 0; i < archivosAEnviar.length; i++) {
                 let item = archivosAEnviar[i];
-                contadoresSubida[item.tipo]++;
                 
-                // Se concatena el idUnicoEnvio al final del nombre con un guion normal
-                let nombreFinal = `${sigla}-${frente}-${ubicacion}-${fecha}_${modulo}_${item.tipo.toUpperCase()}${contadoresSubida[item.tipo]}-${idUnicoEnvio}.${item.extension}`;
+                // CONGELAR NOMBRE: Si el archivo falló en un intento previo, 
+                // conservará su nombre original. Si es nuevo, se le asigna uno permanente.
+                if (!item.nombreAsignado) {
+                    window.contadoresLote[item.tipo]++;
+                    let idFijo = Date.now().toString(36).slice(-4) + Math.floor(Math.random()*1000);
+                    item.nombreAsignado = `${sigla}-${frente}-${ubicacion}-${fecha}_${modulo}_${item.tipo.toUpperCase()}${window.contadoresLote[item.tipo]}-${idFijo}.${item.extension}`;
+                }
+                
+                let nombreFinal = item.nombreAsignado;
 
                 peticionesEnParalelo.push( (async () => {
                     try {
@@ -1309,9 +1316,11 @@
                 })() );
             }
             
-            // Esperamos que TODAS las peticiones se completen en paralelo
             await Promise.all(peticionesEnParalelo);
         }
+        // =========================================================
+        // FIN LÓGICA DE IDEMPOTENCIA
+        // =========================================================
 
         archivosQueue = archivosRestantesEnCola; 
         guardarArchivosEnIndexedDB(archivosQueue); 
@@ -1348,7 +1357,8 @@
             document.getElementById('appDescripcion').value = '';
             document.getElementById('appRetie').checked = false;
             
-            hilosActivos = null; // Reiniciamos la memoria de los hilos para el siguiente reporte
+            hilosActivos = null;
+            window.contadoresLote = undefined; // Resetea los contadores al terminar con éxito
             
             exitoLoader(`TRANSMISIÓN FINALIZADA.${btnTelegramHTML}`, 'vistaApp');
         } else {
