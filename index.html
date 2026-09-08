@@ -1264,13 +1264,16 @@
         let peticionesEnParalelo = [];
         let archivosProcesados = 0;
         
-        // MAGIA: Ejecutar las subidas al mismo tiempo
+        // Genera el ID único fuera del bucle para agrupar los archivos de este envío
+        let idUnicoEnvio = Date.now().toString().slice(-5); 
+        
         if (archivosAEnviar.length > 0) {
             for(let i = 0; i < archivosAEnviar.length; i++) {
                 let item = archivosAEnviar[i];
                 contadoresSubida[item.tipo]++;
                 
-                let nombreFinal = `${sigla}-${frente}-${ubicacion}-${fecha}_${modulo}_${item.tipo.toUpperCase()}${contadoresSubida[item.tipo]}.${item.extension}`;
+                // Se concatena el idUnicoEnvio al final del nombre con un guion normal
+                let nombreFinal = `${sigla}-${frente}-${ubicacion}-${fecha}_${modulo}_${item.tipo.toUpperCase()}${contadoresSubida[item.tipo]}-${idUnicoEnvio}.${item.extension}`;
 
                 peticionesEnParalelo.push( (async () => {
                     try {
