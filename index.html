@@ -316,7 +316,7 @@
   <div class="footer">⚡ DESARROLLO - OBRAS MANIZALES ⚡</div>
 
   <script>
-    // URL OFICIAL ACTUALIZADA
+    // URL DE LA IMPLEMENTACIÓN DE GOOGLE APPS SCRIPT
     const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbyXPKfFPOOo0Qhix51ipazGM7iPp_ouS4TApvrYw_--ibEWqLVdh5KCbokweQfbSyE5Yw/exec'; 
     
     let dbUsuarios = []; 
@@ -400,47 +400,61 @@
         }
     }
 
+    // =========================================================================
+    // INICIO DEL SISTEMA CON REINTENTOS SILENCIOSOS
+    // =========================================================================
     window.addEventListener('DOMContentLoaded', async () => {
         mostrarLoader("INICIANDO SISTEMA");
         await initDB(); 
-        try {
-            const response = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ action: 'init' }) });
-            const result = await response.json();
-            
-            if (result.estado === 'exito') {
-                dbUsuarios = result.usuarios || []; 
-                dbProyectos = result.proyectos || {}; 
-                dbConfig = result.config || {};
-                
-                const datalist = document.getElementById('listaNombres');
-                dbUsuarios.forEach(u => { 
-                    let opt = document.createElement('option'); 
-                    opt.value = u.nombre; 
-                    datalist.appendChild(opt); 
-                });
-                
-                const selProyReg = document.getElementById('regProyecto');
-                Object.keys(dbProyectos).forEach(p => { 
-                    let opt1 = document.createElement('option'); 
-                    opt1.value = p; 
-                    opt1.text = p; 
-                    selProyReg.appendChild(opt1); 
-                });
+        
+        let result = null;
+        let intentosInit = 0;
+        const MAX_INTENTOS = 3;
 
-                clearInterval(simuladorEnMarcha); 
-                document.getElementById("vistaLoader").classList.remove("is-processing");
-                
-                if(localStorage.getItem('usuarioActual')) {
-                    usuarioActual = JSON.parse(localStorage.getItem('usuarioActual')); 
-                    restaurarSesionYDraft();
-                } else { 
-                    cambiarVista('vistaLogin'); 
+        while (intentosInit < MAX_INTENTOS && !result) {
+            try {
+                const response = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ action: 'init' }) });
+                result = await response.json();
+            } catch (e) {
+                intentosInit++;
+                if (intentosInit >= MAX_INTENTOS) {
+                    return authError("Sin conexión al servidor de Google tras varios intentos."); 
                 }
-            } else { 
-                authError("Fallo al leer base de datos."); 
+                await new Promise(r => setTimeout(r, 1500));
             }
-        } catch (e) { 
-            authError("Sin conexión al servidor."); 
+        }
+        
+        if (result && result.estado === 'exito') {
+            dbUsuarios = result.usuarios || []; 
+            dbProyectos = result.proyectos || {}; 
+            dbConfig = result.config || {};
+            
+            const datalist = document.getElementById('listaNombres');
+            dbUsuarios.forEach(u => { 
+                let opt = document.createElement('option'); 
+                opt.value = u.nombre; 
+                datalist.appendChild(opt); 
+            });
+            
+            const selProyReg = document.getElementById('regProyecto');
+            Object.keys(dbProyectos).forEach(p => { 
+                let opt1 = document.createElement('option'); 
+                opt1.value = p; 
+                opt1.text = p; 
+                selProyReg.appendChild(opt1); 
+            });
+
+            clearInterval(simuladorEnMarcha); 
+            document.getElementById("vistaLoader").classList.remove("is-processing");
+            
+            if(localStorage.getItem('usuarioActual')) {
+                usuarioActual = JSON.parse(localStorage.getItem('usuarioActual')); 
+                restaurarSesionYDraft();
+            } else { 
+                cambiarVista('vistaLogin'); 
+            }
+        } else if (result) { 
+            authError("Fallo al leer base de datos."); 
         }
 
         document.querySelectorAll('#vistaApp input:not([type="file"]), #vistaApp select, #vistaApp textarea').forEach(el => {
@@ -519,6 +533,9 @@
         cambiarVista('vistaApp');
     }
 
+    // =========================================================================
+    // INICIO DE SESIÓN CON REINTENTOS SILENCIOSOS
+    // =========================================================================
     async function iniciarSesion() {
       const nombre = document.getElementById('loginNombre').value.trim().toUpperCase(); 
       const password = document.getElementById('loginPassword').value.trim();
@@ -526,21 +543,32 @@
       if(!nombre || !password) return showToast("Por favor ingresa Usuario y Contraseña.");
       
       mostrarLoader("VALIDANDO INFORMACIÓN");
-      try {
-        const r = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ action: 'login', nombre: nombre, password: password }) });
-        const res = await r.json();
-        
-        if(res.estado === 'exito') {
+      
+      let res = null;
+      let intentosLogin = 0;
+      const MAX_INTENTOS = 3;
+
+      while (intentosLogin < MAX_INTENTOS && !res) {
+          try {
+            const r = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ action: 'login', nombre: nombre, password: password }) });
+            res = await r.json();
+          } catch (e) { 
+            intentosLogin++;
+            if (intentosLogin >= MAX_INTENTOS) {
+                return authError("El servidor está saturado. Por favor, reintenta en un momento.");
+            }
+            await new Promise(r => setTimeout(r, 1500));
+          }
+      }
+      
+      if(res && res.estado === 'exito') {
           usuarioActual = res; 
           localStorage.setItem('usuarioActual', JSON.stringify(res)); 
           document.getElementById('loginPassword').value = ''; 
           restaurarSesionYDraft(); 
           exitoLoader(`ACCESO CONCEDIDO:<br><b style="color:white;">${res.nombre}</b>`, 'vistaApp');
-        } else { 
-            authError(res.mensaje); 
-        }
-      } catch (e) { 
-          authError("Falla en el enlace al servidor central."); 
+      } else if (res) { 
+          authError(res.mensaje); 
       }
     }
 
@@ -634,7 +662,7 @@
     }
 
     // =========================================================================
-    // LÓGICA DE AUDIO (INTACTA PARA COMPATIBILIDAD CON IA Y NOTEBOOKLM)
+    // LÓGICA DE AUDIO (LameJS + AudioContext Offline)
     // =========================================================================
     let mediaRecorder; 
     let audioChunks = []; 
@@ -1256,7 +1284,7 @@
         } 
     }
 
-    let appVersionActual = "1.2.3";
+    let appVersionActual = "1.2.4";
     
     window.addEventListener("DOMContentLoaded", () => { 
         const metaTag = document.querySelector('meta[name="app-version"]'); 
