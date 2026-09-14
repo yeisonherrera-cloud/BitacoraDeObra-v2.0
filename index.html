@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="app-version" content="1.2.2">
+  <meta name="app-version" content="1.2.4">
   <title>Plataforma de Registro y Captura</title>
   
   <!-- Fuentes: Inter para legibilidad, JetBrains Mono para toques Tech -->
@@ -218,7 +218,8 @@
     <h2 id="loaderTitle" class="neon-title" data-text="INICIANDO SISTEMA">INICIANDO SISTEMA</h2>
     <div class="message" id="message" data-current="">ESTABLECIENDO ENLACE...</div>
     <div class="progress-container"><div class="progress-bar" id="progressBar">0%</div></div>
-    <button id="btnErrorLoader" class="btn-action btn-error" style="display:none;" onclick="volverDeError()">REGRESAR</button>
+    <!-- BOTÓN DE RECARGA DURO PARA ERRORES FATALES -->
+    <button id="btnErrorLoader" class="btn-action btn-error" style="display:none;" onclick="recargarPagina()">🔄 RECARGAR PÁGINA</button>
     <button id="btnExitoLoader" class="btn-action" style="display:none; border-color: var(--primary); box-shadow: 0 0 20px rgba(0,255,102,0.3);" onclick="volverDeExito()">CONTINUAR</button>
   </div>
 
@@ -315,7 +316,7 @@
   <div class="footer">⚡ DESARROLLO - OBRAS MANIZALES ⚡</div>
 
   <script>
-    // URL DE LA NUEVA IMPLEMENTACIÓN DE PRUEBAS
+    // URL OFICIAL ACTUALIZADA
     const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbyXPKfFPOOo0Qhix51ipazGM7iPp_ouS4TApvrYw_--ibEWqLVdh5KCbokweQfbSyE5Yw/exec'; 
     
     let dbUsuarios = []; 
@@ -633,7 +634,7 @@
     }
 
     // =========================================================================
-    // LÓGICA DE AUDIO
+    // LÓGICA DE AUDIO (INTACTA PARA COMPATIBILIDAD CON IA Y NOTEBOOKLM)
     // =========================================================================
     let mediaRecorder; 
     let audioChunks = []; 
@@ -1006,7 +1007,7 @@
                     }) 
                 });
                 const resTg = await rTg.json();
-                if (resTg.estado === "error") return errorLoader(`Falla de conexión en el servidor.<br><span style="font-size:10px;color:var(--secondary);margin-top:10px;display:block;">${resTg.mensaje}</span>`);
+                if (resTg.estado === "error") return authError(`Falla de conexión en el servidor.<br><span style="font-size:10px;color:var(--secondary);margin-top:10px;display:block;">${resTg.mensaje}</span>`);
                 
                 // Guardamos los hilos para que las fotos sepan a qué mensaje responder
                 telegramSessionData = resTg.threads || {};
@@ -1036,7 +1037,6 @@
 
                 peticionesEnParalelo.push( (async () => {
                     try {
-                        // AQUÍ ENVIAMOS A DRIVE Y A TELEGRAM (Agregada la variable threads: telegramSessionData)
                         const rDrive = await fetch(URL_APPS_SCRIPT, { 
                             method: 'POST', 
                             body: JSON.stringify({ 
@@ -1120,11 +1120,17 @@
         document.getElementById(idVista).classList.add('active'); 
     }
     
+    // FUNCIONES DE RESETEO Y RECARGA
+    function recargarPagina() {
+        window.location.reload(true);
+    }
+    
     function resetBtnError() { 
         const btn = document.getElementById("btnErrorLoader"); 
         btn.className = "btn-action btn-error"; 
         btn.style.background = ""; 
-        btn.innerHTML = "REGRESAR"; 
+        btn.innerHTML = "🔄 RECARGAR PÁGINA"; 
+        btn.onclick = recargarPagina;
     }
 
     function mostrarLoader(titulo) {
@@ -1177,7 +1183,7 @@
     // VISUAL DE PAUSA/REINTENTO (CYAN - TRANQUILIDAD PSICOLÓGICA)
     // =========================================================================
     function authError(msgError) {
-      // Error tradicional (Rojo) solo para Login o Registro
+      // Error tradicional (Rojo) para problemas críticos o de Login
       clearInterval(simuladorEnMarcha); 
       document.getElementById("vistaLoader").classList.remove("is-processing"); 
       
@@ -1220,12 +1226,12 @@
       btn.className = "btn-action btn-telegram"; // Estilo Cyan
       btn.style.background = ""; 
       btn.innerHTML = "🔄 REINTENTAR AHORA";
+      btn.onclick = volverDeError; // Este sí los regresa a la app para reintentar sin recargar
       btn.style.display = "flex";
     }
 
     function volverDeError() { 
         document.getElementById("message").style.color = "var(--primary)"; 
-        resetBtnError(); 
         cambiarVista(ultimaVista || 'vistaLogin'); 
     }
 
@@ -1250,7 +1256,7 @@
         } 
     }
 
-    let appVersionActual = "1.1.1";
+    let appVersionActual = "1.2.3";
     
     window.addEventListener("DOMContentLoaded", () => { 
         const metaTag = document.querySelector('meta[name="app-version"]'); 
