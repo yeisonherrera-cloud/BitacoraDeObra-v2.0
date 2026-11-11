@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="app-version" content="1.2.4">
+  <meta name="app-version" content="1.2.9">
   <title>Plataforma de Registro y Captura</title>
   
   <!-- Fuentes: Inter para legibilidad, JetBrains Mono para toques Tech -->
@@ -155,6 +155,26 @@
         100% { box-shadow: 0 0 0 0 rgba(255, 0, 85, 0), inset 0 0 15px rgba(255, 0, 85, 0.5); } 
     }
 
+    /* BOTÓN SUTIL DE SINCRONIZACIÓN */
+    .btn-sync-subtle {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.3);
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.4s ease;
+        z-index: 100;
+        padding: 5px;
+    }
+    .btn-sync-subtle:hover {
+        color: var(--secondary);
+        transform: rotate(180deg);
+        text-shadow: 0 0 10px rgba(0, 204, 255, 0.8);
+    }
+
     .logo-wrapper { position: relative; display: inline-block; margin-bottom: 25px; }
     .logo-wrapper img { width: 160px; border-radius: 12px; display: block; animation: float 4s ease-in-out infinite, pulseGlow 3s alternate infinite; filter: drop-shadow(0 0 15px rgba(0, 204, 255, 0.3)); }
     .neon-title { margin-top: 0; font-size: 24px; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 5px rgba(255,255,255,0.5), 0 0 15px var(--primary), 0 0 30px var(--primary); }
@@ -218,13 +238,21 @@
     <h2 id="loaderTitle" class="neon-title" data-text="INICIANDO SISTEMA">INICIANDO SISTEMA</h2>
     <div class="message" id="message" data-current="">ESTABLECIENDO ENLACE...</div>
     <div class="progress-container"><div class="progress-bar" id="progressBar">0%</div></div>
+    
     <!-- BOTÓN DE RECARGA DURO PARA ERRORES FATALES -->
     <button id="btnErrorLoader" class="btn-action btn-error" style="display:none;" onclick="recargarPagina()">🔄 RECARGAR PÁGINA</button>
+    
+    <!-- BOTÓN NUEVO REPORTE EN CASO DE FALLO (Reemplaza al de volver) -->
+    <button id="btnNuevoReporte" class="btn-action btn-error" style="display:none; margin-top: 10px; border-color: var(--accent);" onclick="abortarYNuevoReporte()">🗑️ LIMPIAR Y CREAR NUEVO</button>
+
     <button id="btnExitoLoader" class="btn-action" style="display:none; border-color: var(--primary); box-shadow: 0 0 20px rgba(0,255,102,0.3);" onclick="volverDeExito()">CONTINUAR</button>
   </div>
 
   <!-- Vista Login -->
   <div class="card" id="vistaLogin">
+    <!-- BOTÓN SUTIL EN LA ESQUINA -->
+    <button class="btn-sync-subtle" onclick="forzarActualizacionBD()" title="Sincronizar Datos">🔄</button>
+
     <h2 class="neon-title" data-text="BITÁCORA DE OBRA">BITÁCORA DE OBRA</h2>
     <p style="color: #64748b; font-size: 11px; margin-bottom: 25px; font-family: 'JetBrains Mono', monospace; letter-spacing: 1px;">AUTENTICACIÓN REQUERIDA</p>
     <div class="input-group">
@@ -316,7 +344,7 @@
   <div class="footer">⚡ DESARROLLO - OBRAS MANIZALES ⚡</div>
 
   <script>
-    // URL DE LA IMPLEMENTACIÓN DE GOOGLE APPS SCRIPT
+    // URL DE LA IMPLEMENTACIÓN DE GOOGLE APPS SCRIPT ACTUALIZADA
     const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbyXPKfFPOOo0Qhix51ipazGM7iPp_ouS4TApvrYw_--ibEWqLVdh5KCbokweQfbSyE5Yw/exec'; 
     
     let dbUsuarios = []; 
@@ -752,7 +780,8 @@
                       if (mp3Blob) agregarACola(mp3Blob, 'Audio', 'mp3'); 
                       else throw new Error("Fallo final.");
                   } catch(err) { 
-                      agregarACola(audioBlobOriginal, 'Audio', extOriginal);
+                      // Fallback forzado a mp4 para asegurar lectura en NotebookLM si LameJS falla
+                      agregarACola(audioBlobOriginal, 'Audio', 'mp4');
                   } finally { 
                       document.getElementById("vistaLoader").classList.remove("is-processing"); 
                       cambiarVista('vistaApp'); 
@@ -822,11 +851,23 @@
                 img.src = e.target.result;
                 img.onload = () => {
                     setTimeout(() => {
+                        // Limitar resolución máxima para no saturar Base64 (1920x1920)
+                        const MAX_WIDTH = 1920;
+                        const MAX_HEIGHT = 1920;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                        } else {
+                            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                        }
+
                         const canvas = document.createElement('canvas'); 
-                        canvas.width = img.width; 
-                        canvas.height = img.height;
+                        canvas.width = width; 
+                        canvas.height = height;
                         const ctx = canvas.getContext('2d'); 
-                        ctx.drawImage(img, 0, 0);
+                        ctx.drawImage(img, 0, 0, width, height);
                         canvas.toBlob((blob) => { 
                             resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpeg", { type: 'image/jpeg' })); 
                         }, 'image/jpeg', 0.85); 
@@ -845,7 +886,7 @@
         mostrarLoader("Optimizando Datos...");
         for (let i = 0; i < files.length; i++) {
             const archivo = files[i];
-            if (archivo.size > 40 * 1024 * 1024) { showToast(`El archivo ${archivo.name} excede el límite (40MB).`); continue; }
+            if (archivo.size > 30 * 1024 * 1024) { showToast(`El archivo ${archivo.name} excede el límite (30MB).`); continue; }
             
             let tipo = archivo.type.includes('video') ? 'Video' : 'Foto'; 
             let extension = archivo.name.split('.').pop().toLowerCase();
@@ -867,8 +908,8 @@
       const archivo = e.target.files[0]; 
       if (!archivo) return;
       
-      if (archivo.size > 40 * 1024 * 1024) { 
-          showToast(`Límite excedido (40MB).`); 
+      if (archivo.size > 30 * 1024 * 1024) { 
+          showToast(`Límite excedido (30MB).`); 
           e.target.value = ""; 
           return; 
       }
@@ -975,7 +1016,7 @@
     }
 
     // =========================================================================
-    // MOTOR PRINCIPAL DE ENVÍO Y REINTENTOS 
+    // MOTOR PRINCIPAL DE ENVÍO Y REINTENTOS (EN PARALELO Y VELOZ)
     // =========================================================================
     async function enviarReporteEnCola() {
         if (!navigator.onLine) {
@@ -1006,6 +1047,7 @@
         let archivosRestantesEnCola = []; 
         let errores = 0; 
         let contadoresTipo = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
+        let ultimoErrorDetectado = "Corte de red o límite de conexión.";
         
         archivosAEnviar.forEach(item => { if(contadoresTipo[item.tipo] !== undefined) contadoresTipo[item.tipo]++; });
         let resumenText = `Total: ${contadoresTipo['Foto']} Imágenes, ${contadoresTipo['Video']} Videos, ${contadoresTipo['Audio']} Audios.`;
@@ -1044,7 +1086,7 @@
             }
         }
 
-        // 3. PROCESAMIENTO PARALELO (Delegando trabajo pesado a Google)
+        // 3. PROCESAMIENTO PARALELO (Delegando trabajo pesado a Google - MÁXIMA VELOCIDAD)
         if (typeof window.contadoresLote === 'undefined') window.contadoresLote = { 'Foto': 0, 'Video': 0, 'Audio': 0 };
         
         let peticionesEnParalelo = [];
@@ -1077,21 +1119,25 @@
                                 threads: telegramSessionData 
                             }) 
                         });
-                        const resDrive = await rDrive.json();
                         
+                        if(!rDrive.ok) throw new Error("Google bloqueó la conexión.");
+                        
+                        const resDrive = await rDrive.json();
                         if(resDrive.estado !== 'exito') throw new Error(resDrive.mensaje);
                         item.hasFailed = false;
 
                     } catch (e) { 
                         errores++; 
                         item.hasFailed = true; 
+                        ultimoErrorDetectado = e.message;
                         archivosRestantesEnCola.push(item); 
                     }
                     archivosProcesados++;
-                    actualizarUI({ progreso: Math.floor((archivosProcesados/archivosAEnviar.length)*80), mensaje: `Transfiriendo datos (${archivosProcesados}/${archivosAEnviar.length})...` });
+                    actualizarUI({ progreso: Math.floor((archivosProcesados/archivosAEnviar.length)*80) + 10, mensaje: `Transfiriendo datos (${archivosProcesados}/${archivosAEnviar.length})...` });
                 })() );
             }
             
+            // Lanza todos los envíos al mismo tiempo (super rápido)
             await Promise.all(peticionesEnParalelo);
         }
 
@@ -1131,15 +1177,14 @@
             document.getElementById('appDescripcion').value = '';
             document.getElementById('appRetie').checked = false;
             
-            // RESET DE IDEMPOTENCIA AL TERMINAR
             idReporteActual = null;
             telegramSessionData = null;
             window.contadoresLote = undefined; 
             
             exitoLoader(`TRANSMISIÓN FINALIZADA.${btnTelegramHTML}`, 'vistaApp');
         } else {
-            let extraMsg = subidosExito > 0 ? `<br><br><span style="color:var(--primary); font-size:11px; font-family:'JetBrains Mono';">✔ ${subidosExito} ARCHIVOS GUARDADOS.</span>` : '';
-            errorLoader(`PAUSADO: FALTAN ${errores} ARCHIVO(S).${extraMsg}<br><span style="font-size:10px;color:var(--secondary);margin-top:10px;display:block;">Espera mejor señal para continuar.</span>`);
+            let extraMsg = subidosExito > 0 ? `<br><br><span style="color:var(--primary); font-size:11px; font-family:'JetBrains Mono';">✔ ${subidosExito} ARCHIVOS GUARDADOS.</span><br>` : '<br><br>';
+            errorLoader(`PAUSADO: FALTAN ${errores} ARCHIVO(S).${extraMsg}<span style="font-size:10px;color:var(--accent);font-weight:bold;margin-bottom:10px;display:block;">Motivo: ${ultimoErrorDetectado}</span>`);
         }
     }
 
@@ -1167,6 +1212,7 @@
       document.getElementById("vistaLoader").classList.add("is-processing");
       
       document.getElementById("btnErrorLoader").style.display = "none"; 
+      document.getElementById("btnNuevoReporte").style.display = "none";
       document.getElementById("btnExitoLoader").style.display = "none";
       
       document.getElementById("loaderTitle").innerText = titulo; 
@@ -1229,11 +1275,11 @@
       m.innerHTML = `<b>${msgError}</b>`;
       
       resetBtnError(); 
-      document.getElementById("btnErrorLoader").style.display = "flex";
+      document.getElementById("btnErrorLoader").style.display = "block";
+      document.getElementById("btnNuevoReporte").style.display = "none";
     }
 
     function errorLoader(msgError) {
-      // Estado de "Pausado por red" (Azul Cyan amigable)
       clearInterval(simuladorEnMarcha); 
       document.getElementById("vistaLoader").classList.remove("is-processing"); 
       
@@ -1250,17 +1296,59 @@
       m.style.color = "white"; 
       m.innerHTML = `<b>${msgError}</b>`;
       
+      // Mostrar Botón de Reintento Inmediato
       const btn = document.getElementById("btnErrorLoader");
-      btn.className = "btn-action btn-telegram"; // Estilo Cyan
+      btn.className = "btn-action btn-telegram";
       btn.style.background = ""; 
       btn.innerHTML = "🔄 REINTENTAR AHORA";
-      btn.onclick = volverDeError; // Este sí los regresa a la app para reintentar sin recargar
-      btn.style.display = "flex";
+      btn.onclick = reintentarEnvioDirecto; 
+      btn.style.display = "block";
+
+      // Mostrar el botón de Limpiar y Crear Nuevo
+      document.getElementById("btnNuevoReporte").style.display = "block";
     }
 
-    function volverDeError() { 
-        document.getElementById("message").style.color = "var(--primary)"; 
-        cambiarVista(ultimaVista || 'vistaLogin'); 
+    function reintentarEnvioDirecto() {
+        document.getElementById("btnErrorLoader").style.display = "none";
+        document.getElementById("btnNuevoReporte").style.display = "none";
+        enviarReporteEnCola(); // Re-lanza la conexión inmediatamente
+    }
+
+    function abortarYNuevoReporte() {
+        archivosQueue = []; 
+        borrarArchivosDeIndexedDB(); 
+        actualizarUICola(); 
+        
+        idReporteActual = null; 
+        telegramSessionData = null;
+        window.contadoresLote = undefined; 
+        localStorage.removeItem('reporteDraft');
+        
+        document.getElementById('appUbicacion').value = ''; 
+        document.getElementById('appDescripcion').value = '';
+        document.getElementById('appRetie').checked = false;
+        
+        document.getElementById("btnErrorLoader").style.display = "none";
+        document.getElementById("btnNuevoReporte").style.display = "none";
+        
+        cambiarVista('vistaApp');
+        showToast("Información limpiada. Listo para nuevo reporte.");
+    }
+
+    // NUEVO BOTON SUTIL DE SINCRONIZACIÓN
+    async function forzarActualizacionBD() {
+        mostrarLoader("SINCRONIZANDO DATOS...");
+        try {
+            const r = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ action: 'clear_cache' }) });
+            const res = await r.json();
+            if(res.estado === 'exito') {
+                window.location.reload(true);
+            } else {
+                authError("Error al sincronizar.");
+            }
+        } catch (e) {
+            authError("Fallo en la conexión.");
+        }
     }
 
     function textScramble(e, t) {
@@ -1284,7 +1372,7 @@
         } 
     }
 
-    let appVersionActual = "1.2.4";
+    let appVersionActual = "1.2.9";
     
     window.addEventListener("DOMContentLoaded", () => { 
         const metaTag = document.querySelector('meta[name="app-version"]'); 
